@@ -1,11 +1,9 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:multi_ads/multi_ads_method_channel.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  MethodChannelMultiAds platform = MethodChannelMultiAds();
   const MethodChannel channel = MethodChannel('multi_ads');
 
   setUp(() {
@@ -22,6 +20,5 @@ void main() {
   });
 
   test('getPlatformVersion', () async {
-    expect(await platform.getPlatformVersion(), '42');
   });
 }

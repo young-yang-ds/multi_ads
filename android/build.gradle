@@ -50,6 +50,9 @@ android {
     dependencies {
         testImplementation("org.jetbrains.kotlin:kotlin-test")
         testImplementation("org.mockito:mockito-core:5.0.0")
+        
+        // Pangle Ads SDK
+        implementation("com.pangle.global:ads-sdk:5.9.0.8")
     }
 
     testOptions {
