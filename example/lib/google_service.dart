@@ -3,11 +3,12 @@ import 'package:multi_ads/multi_ads.dart';
 import 'package:multi_ads_example/ad_config.dart';
 
 class GoogleService {
-  openShow() => GoogleOpenAd.loadAndShow(GoogleAdConfig.openId);
+  void openShow() => GoogleOpenAd.loadAndShow(GoogleAdConfig.openId);
 
-  interstitialStart() => GoogleInterstitialAd.start(GoogleAdConfig.interId, 5);
+  void interstitialStart() =>
+      GoogleInterstitialAd.start(GoogleAdConfig.interId, 5);
 
-  bannerLoad(BuildContext context, Function onAdLoadedRefresh) =>
+  Future<void> bannerLoad(BuildContext context, Function onAdLoadedRefresh) =>
       GoogleBannerAd.load(
         context,
         GoogleAdConfig.bannerId,

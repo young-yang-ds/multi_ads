@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:multi_ads/multi_ads.dart';
+import 'package:multi_ads_example/google_service.dart';
 import 'package:multi_ads_example/pages/google_ads_page.dart';
 import 'package:multi_ads_example/pages/pga_page.dart';
+import 'dart:developer' as dev;
 
 void main() {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  GoogleAdsInitialize.init();
+  GoogleAdsInitialize.init().then((value) {
+    dev.log('${value.adapterStatuses}');
+  });
 
   runApp(const MyApp());
 }
@@ -37,7 +41,16 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    FlutterNativeSplash.remove();
+
+    showGoogleOpen();
+  }
+
+  void showGoogleOpen() {
+    Future.delayed(Duration(seconds: 3), () {
+      FlutterNativeSplash.remove();
+    });
+
+    GoogleService().openShow();
   }
 
   @override

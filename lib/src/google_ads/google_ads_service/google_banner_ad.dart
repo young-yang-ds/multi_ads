@@ -35,12 +35,17 @@ class GoogleBannerAd {
       request: const AdRequest(extras: {"collapsible": "bottom"}),
       size: size,
       listener: BannerAdListener(
-        onAdLoaded: (ad) async {
-          await Future.delayed(const Duration(seconds: 5));
+        onAdLoaded: (ad) {
           onAdLoadedRefresh?.call();
           _isLoading = false;
           LogUtils.log('Banner ad loaded', tag: 'google ads');
         },
+        // onAdLoaded: (ad) async {
+        //   await Future.delayed(const Duration(seconds: 5));
+        //   onAdLoadedRefresh?.call();
+        //   _isLoading = false;
+        //   LogUtils.log('Banner ad loaded', tag: 'google ads');
+        // },
         onAdClicked: (ad) {
           onAdClicked?.call();
         },
