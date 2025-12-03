@@ -8,10 +8,12 @@ class GoogleService {
   void interstitialStart() =>
       GoogleInterstitialAd.start(GoogleAdConfig.interId, 5);
 
-  Future<void> bannerLoad(BuildContext context, Function onAdLoadedRefresh) =>
-      GoogleBannerAd.load(
-        context,
-        GoogleAdConfig.bannerId,
-        onAdLoadedRefresh: onAdLoadedRefresh,
-      );
+  Future<void> bannerLoad(
+    BuildContext context, {
+    Function? onAdLoadedRefresh,
+  }) => GoogleBannerAd.load(
+    context,
+    GoogleAdConfig.bannerId,
+    onAdLoadedRefresh: onAdLoadedRefresh,
+  );
 }

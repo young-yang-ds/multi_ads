@@ -18,9 +18,21 @@ class _GoogleAdsPageState extends State<GoogleAdsPage> {
     super.initState();
 
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      GoogleService().bannerLoad(context, () {
-        if (mounted) setState(() {});
-      });
+      // Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) => const DemoWebviewPage(
+      //       url: 'https://www.baidu.com',
+      //     ),
+      //   ),
+      // );
+
+      GoogleService().bannerLoad(
+        context,
+        onAdLoadedRefresh: () {
+          if (mounted) setState(() {});
+        },
+      );
     });
   }
 

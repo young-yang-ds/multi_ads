@@ -5,7 +5,6 @@ import 'package:multi_ads/src/log_utils.dart';
 class GoogleBannerAd {
   static BannerAd? _bannerAd;
   static bool _isLoading = false;
-  static _BannerAdWidgetState? _currentOwner;
 
   static Future<void> load(
     BuildContext context,
@@ -35,17 +34,13 @@ class GoogleBannerAd {
       request: const AdRequest(extras: {"collapsible": "bottom"}),
       size: size,
       listener: BannerAdListener(
-        onAdLoaded: (ad) {
+        onAdLoaded: (ad) async {
+          // await Future.delayed(const Duration(seconds: 2));
           onAdLoadedRefresh?.call();
+
           _isLoading = false;
           LogUtils.log('Banner ad loaded', tag: 'google ads');
         },
-        // onAdLoaded: (ad) async {
-        //   await Future.delayed(const Duration(seconds: 5));
-        //   onAdLoadedRefresh?.call();
-        //   _isLoading = false;
-        //   LogUtils.log('Banner ad loaded', tag: 'google ads');
-        // },
         onAdClicked: (ad) {
           onAdClicked?.call();
         },
@@ -77,56 +72,9 @@ class GoogleBannerAd {
     return _BannerAdWidget(bannerAd: _bannerAd!);
   }
 
-  static void _claimOwnership(_BannerAdWidgetState newOwner) {
-    if (_currentOwner != null && _currentOwner != newOwner) {
-      _currentOwner!._releaseAd();
-      // Delay setting new owner to ensure old widget rebuilds first
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (newOwner.mounted) {
-          _currentOwner = newOwner;
-          newOwner._finishClaim();
-        }
-      });
-    } else {
-      _currentOwner = newOwner;
-      newOwner._finishClaim();
-    }
-  }
-
-  static void _releaseOwnership(_BannerAdWidgetState owner) {
-    if (_currentOwner == owner) {
-      _currentOwner = null;
-      // Notify other waiting widgets to try claiming ownership
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _notifyWaitingWidgets();
-      });
-    }
-  }
-
-  static final Set<_BannerAdWidgetState> _waitingWidgets = {};
-
-  static void _registerWaiting(_BannerAdWidgetState widget) {
-    _waitingWidgets.add(widget);
-  }
-
-  static void _unregisterWaiting(_BannerAdWidgetState widget) {
-    _waitingWidgets.remove(widget);
-  }
-
-  static void _notifyWaitingWidgets() {
-    if (_currentOwner == null && _waitingWidgets.isNotEmpty) {
-      final widget = _waitingWidgets.first;
-      if (widget.mounted) {
-        widget._claimOwnership();
-      }
-    }
-  }
-
   static void dispose() {
     _bannerAd?.dispose();
     _bannerAd = null;
-    _currentOwner = null;
-    _waitingWidgets.clear();
   }
 }
 
@@ -140,47 +88,62 @@ class _BannerAdWidget extends StatefulWidget {
 }
 
 class _BannerAdWidgetState extends State<_BannerAdWidget> {
+  static _BannerAdWidgetState? _currentOwner;
   bool _isOwner = false;
 
   @override
-  void initState() {
-    super.initState();
-    GoogleBannerAd._registerWaiting(this);
-    // Use post-frame callback to avoid setState during build
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _claimOwnership();
+        _tryClaimOwnership();
       }
     });
   }
 
   @override
   void dispose() {
-    GoogleBannerAd._unregisterWaiting(this);
-    if (_isOwner) {
-      GoogleBannerAd._releaseOwnership(this);
+    if (_currentOwner == this) {
+      _currentOwner = null;
     }
     super.dispose();
   }
 
-  void _claimOwnership() {
-    if (!_isOwner) {
-      GoogleBannerAd._unregisterWaiting(this);
-      GoogleBannerAd._claimOwnership(this);
+  void _tryClaimOwnership() {
+    if (!mounted) return;
+
+    final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
+
+    if (isCurrentRoute && !_isOwner) {
+      if (_currentOwner == null || !_currentOwner!.mounted) {
+        _currentOwner = this;
+        setState(() {
+          _isOwner = true;
+        });
+      } else if (_currentOwner != this) {
+        final oldOwner = _currentOwner!;
+        _currentOwner = this;
+
+        oldOwner._releaseOwnership();
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+            setState(() {
+              _isOwner = true;
+            });
+          }
+        });
+      }
+    } else if (!isCurrentRoute && _isOwner) {
+      _releaseOwnership();
     }
   }
 
-  void _finishClaim() {
-    if (mounted && !_isOwner) {
-      setState(() {
-        _isOwner = true;
-      });
-    }
-  }
-
-  void _releaseAd() {
+  void _releaseOwnership() {
     if (_isOwner && mounted) {
-      GoogleBannerAd._registerWaiting(this);
+      if (_currentOwner == this) {
+        _currentOwner = null;
+      }
       setState(() {
         _isOwner = false;
       });

@@ -33,9 +33,12 @@ class _DemoWebviewPageState extends State<DemoWebviewPage> {
     super.initState();
 
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      GoogleService().bannerLoad(context, () {
-        if (mounted) setState(() {});
-      });
+      GoogleService().bannerLoad(
+        context,
+        onAdLoadedRefresh: () {
+          if (mounted) setState(() {});
+        },
+      );
     });
   }
 
