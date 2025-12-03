@@ -9,10 +9,10 @@ class GoogleBannerAd {
   static Future<void> load(
     BuildContext context,
     String adUnitId, {
-    Function? onAdShowed,
-    Function? onAdFailedToShow,
-    Function? onAdDismiss,
-    Function? onAdClicked,
+    Function? onAdShowedHandle,
+    Function? onAdFailedToShowHandle,
+    Function? onAdDismissHandle,
+    Function? onAdClickedHandle,
     Function? onAdLoadedRefresh,
   }) async {
     if (_isLoading || _bannerAd != null) return;
@@ -42,10 +42,10 @@ class GoogleBannerAd {
           LogUtils.log('Banner ad loaded', tag: 'google ads');
         },
         onAdClicked: (ad) {
-          onAdClicked?.call();
+          onAdClickedHandle?.call();
         },
         onAdFailedToLoad: (ad, err) {
-          onAdFailedToShow?.call();
+          onAdFailedToShowHandle?.call();
           _isLoading = false;
           ad.dispose();
           _bannerAd = null;
@@ -53,12 +53,12 @@ class GoogleBannerAd {
           LogUtils.log('Banner ad load failed: $err', tag: 'google ads');
         },
         onAdClosed: (ad) {
-          onAdDismiss?.call();
+          onAdDismissHandle?.call();
           LogUtils.log('banner ad dismiss', tag: 'Google_ads');
         },
         onAdOpened: (ad) {
           LogUtils.log('banner ad showed', tag: 'Google_ads');
-          onAdShowed?.call();
+          onAdShowedHandle?.call();
         },
       ),
     );

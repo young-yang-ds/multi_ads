@@ -7,10 +7,10 @@ class GoogleOpenAd {
 
   static void loadAndShow(
     String adUnitId, {
-    Function? onAdShowed,
-    Function? onAdFailedToShow,
-    Function? onAdDismiss,
-    Function? onAdClicked,
+    Function? onAdShowedHandle,
+    Function? onAdFailedToShowHandle,
+    Function? onAdDismissHandle,
+    Function? onAdClickedHandle,
   }) {
     if (_isShowingAd) return;
     LogUtils.log('Open ad loading', tag: 'google ads');
@@ -23,13 +23,13 @@ class GoogleOpenAd {
           _appOpenAd = ad;
           _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
             onAdShowedFullScreenContent: (ad) {
-              onAdShowed?.call();
+              onAdShowedHandle?.call();
               _isShowingAd = true;
 
               LogUtils.log('Open ad showed', tag: 'google ads');
             },
             onAdFailedToShowFullScreenContent: (ad, error) {
-              onAdFailedToShow?.call();
+              onAdFailedToShowHandle?.call();
               _isShowingAd = false;
               ad.dispose();
               _appOpenAd = null;
@@ -37,7 +37,7 @@ class GoogleOpenAd {
               LogUtils.log('Open ad failed show: $error', tag: 'google ads');
             },
             onAdDismissedFullScreenContent: (ad) {
-              onAdDismiss?.call();
+              onAdDismissHandle?.call();
               _isShowingAd = false;
               ad.dispose();
               _appOpenAd = null;
@@ -45,13 +45,13 @@ class GoogleOpenAd {
               LogUtils.log('Open ad dismiss', tag: 'google ads');
             },
             onAdClicked: (ad) {
-              onAdClicked?.call();
+              onAdClickedHandle?.call();
             },
           );
           _appOpenAd?.show();
         },
         onAdFailedToLoad: (error) {
-          onAdFailedToShow?.call();
+          onAdFailedToShowHandle?.call();
 
           LogUtils.log('Open ad load failed: $error', tag: 'google ads');
         },

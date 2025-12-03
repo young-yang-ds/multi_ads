@@ -10,10 +10,10 @@ class GoogleInterstitialAd {
   static void start(
     String adUnitId,
     int displayInterval, {
-    Function? onAdShowed,
-    Function? onAdFailedToShow,
-    Function? onAdDismiss,
-    Function? onAdClicked,
+    Function? onAdShowedHandle,
+    Function? onAdFailedToShowHandle,
+    Function? onAdDismissHandle,
+    Function? onAdClickedHandle,
   }) {
     if (_isLooping) return;
     LogUtils.log('Inter ad start', tag: 'google ads');
@@ -22,10 +22,10 @@ class GoogleInterstitialAd {
     _loadAndShow(
       adUnitId,
       displayInterval,
-      onAdShowed: onAdShowed,
-      onAdFailedToShow: onAdFailedToShow,
-      onAdDismiss: onAdDismiss,
-      onAdClicked: onAdClicked,
+      onAdShowedHandle: onAdShowedHandle,
+      onAdFailedToShowHandle: onAdFailedToShowHandle,
+      onAdDismissHandle: onAdDismissHandle,
+      onAdClickedHandle: onAdClickedHandle,
     );
   }
 
@@ -39,10 +39,10 @@ class GoogleInterstitialAd {
   static void _loadAndShow(
     String adUnitId,
     int displayInterval, {
-    Function? onAdShowed,
-    Function? onAdFailedToShow,
-    Function? onAdDismiss,
-    Function? onAdClicked,
+    Function? onAdShowedHandle,
+    Function? onAdFailedToShowHandle,
+    Function? onAdDismissHandle,
+    Function? onAdClickedHandle,
   }) {
     if (!_isLooping || _isLoading) return;
     _isLoading = true;
@@ -56,37 +56,49 @@ class GoogleInterstitialAd {
           _interstitialAd = ad;
           ad.fullScreenContentCallback = FullScreenContentCallback(
             onAdShowedFullScreenContent: (ad) {
-              onAdShowed?.call();
+              onAdShowedHandle?.call();
 
               LogUtils.log('Inter ad showed', tag: 'google ads');
             },
             onAdFailedToShowFullScreenContent: (ad, err) {
-              onAdFailedToShow?.call();
+              onAdFailedToShowHandle?.call();
               ad.dispose();
               _interstitialAd = null;
-              _scheduleNext(adUnitId, displayInterval, onAdShowed: onAdShowed);
+              _scheduleNext(
+                adUnitId,
+                displayInterval,
+                onAdShowedHandle: onAdShowedHandle,
+              );
 
               LogUtils.log('Inter ad failed show: $err', tag: 'google ads');
             },
             onAdDismissedFullScreenContent: (ad) {
-              onAdDismiss?.call();
+              onAdDismissHandle?.call();
               ad.dispose();
               _interstitialAd = null;
-              _scheduleNext(adUnitId, displayInterval, onAdShowed: onAdShowed);
+              _scheduleNext(
+                adUnitId,
+                displayInterval,
+                onAdShowedHandle: onAdShowedHandle,
+              );
 
               LogUtils.log('Inter ad dismiss', tag: 'google ads');
             },
             onAdImpression: (ad) {},
             onAdClicked: (ad) {
-              onAdClicked?.call();
+              onAdClickedHandle?.call();
             },
           );
           _interstitialAd?.show();
         },
         onAdFailedToLoad: (LoadAdError error) {
-          onAdFailedToShow?.call();
+          onAdFailedToShowHandle?.call();
           _isLoading = false;
-          _scheduleNext(adUnitId, displayInterval, onAdShowed: onAdShowed);
+          _scheduleNext(
+            adUnitId,
+            displayInterval,
+            onAdShowedHandle: onAdShowedHandle,
+          );
 
           LogUtils.log('Inter ad load failed: $error', tag: 'google ads');
         },
@@ -97,20 +109,20 @@ class GoogleInterstitialAd {
   static void _scheduleNext(
     String adUnitId,
     int displayInterval, {
-    Function? onAdShowed,
-    Function? onAdFailedToShow,
-    Function? onAdDismiss,
-    Function? onAdClicked,
+    Function? onAdShowedHandle,
+    Function? onAdFailedToShowHandle,
+    Function? onAdDismissHandle,
+    Function? onAdClickedHandle,
   }) {
     if (!_isLooping) return;
     Future.delayed(Duration(seconds: displayInterval), () {
       _loadAndShow(
         adUnitId,
         displayInterval,
-        onAdShowed: onAdShowed,
-        onAdFailedToShow: onAdFailedToShow,
-        onAdDismiss: onAdDismiss,
-        onAdClicked: onAdClicked,
+        onAdShowedHandle: onAdShowedHandle,
+        onAdFailedToShowHandle: onAdFailedToShowHandle,
+        onAdDismissHandle: onAdDismissHandle,
+        onAdClickedHandle: onAdClickedHandle,
       );
     });
   }
