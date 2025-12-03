@@ -110,7 +110,7 @@ class _PgaPageState extends State<PgaPage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _showInterstitialAd,
+              onPressed: _loadInterstitialAd,
               child: const Text('Show Interstitial Ad'),
             ),
             const SizedBox(height: 20),
