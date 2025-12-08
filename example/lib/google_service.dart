@@ -6,7 +6,7 @@ class GoogleService {
   void openShow() => GoogleOpenAd.loadAndShow(GoogleAdConfig.openId);
 
   void interstitialStart() =>
-      GoogleInterstitialAd.start(GoogleAdConfig.interId, 5);
+      InterstitialUtils.start(GoogleAdConfig.interId, 0, 5);
 
   Future<void> bannerLoad(
     BuildContext context, {

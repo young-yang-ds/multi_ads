@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:multi_ads/src/log_utils.dart';
+import 'package:multi_ads/src/utils/log_utils.dart';
 
 class GoogleBannerAd {
   static BannerAd? _bannerAd;
