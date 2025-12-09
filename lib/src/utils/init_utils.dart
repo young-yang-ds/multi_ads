@@ -26,7 +26,7 @@ class InitUtils {
     String? pangleGlobalAppId,
     bool debug = false,
   }) async* {
-    // Google Ads 初始化
+    // Google Ads init
     try {
       await GoogleAdsInitialize.init();
       LogUtils.log('google ads init success');
@@ -40,7 +40,7 @@ class InitUtils {
       );
     }
 
-    // Pangle 初始化
+    // Pangle init
     if (pangleGlobalAppId != null) {
       final config = PangleAdConfig(appId: pangleGlobalAppId, debug: debug);
 
