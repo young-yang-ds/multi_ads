@@ -1,17 +1,17 @@
+import '../../multi_ads.dart';
 import '../google_ads/google_ads_service/google_interstitial_ad.dart';
 import '../pangle_global/interstitial_ad.dart';
+import 'init_utils.dart';
 import 'log_utils.dart';
 
 class InterstitialUtils {
   static bool _isLooping = false;
-  static int _currentAdType = 0;
+  static AdPlatform _currentAdPlatform = AdPlatform.google;
   static PangleInterstitialAd? _pangleAd;
 
-  // adType
-  // 0:google  1:pga
   static void start(
     String adUnitId,
-    int adType,
+    AdPlatform adPlatform,
     int displayInterval, {
     Function? onAdShowedHandle,
     Function? onAdFailedToShowHandle,
@@ -20,13 +20,16 @@ class InterstitialUtils {
     Function? onAdImpressionHandle,
   }) {
     if (_isLooping) return;
-    LogUtils.log('Inter ad start, adType: $adType', tag: 'interstitial');
+    LogUtils.log(
+      'Inter ad start, adPlatform: $adPlatform',
+      tag: 'interstitial',
+    );
 
     _isLooping = true;
-    _currentAdType = adType;
+    _currentAdPlatform = adPlatform;
     _loadAndShow(
       adUnitId,
-      adType,
+      adPlatform,
       displayInterval,
       onAdShowedHandle: onAdShowedHandle,
       onAdFailedToShowHandle: onAdFailedToShowHandle,
@@ -38,16 +41,16 @@ class InterstitialUtils {
 
   static void stop() {
     _isLooping = false;
-    if (_currentAdType == 0) {
+    if (_currentAdPlatform == AdPlatform.google) {
       GoogleInterstitialAd.dispose();
-    } else {
+    } else if (_currentAdPlatform == AdPlatform.pangleGlobal) {
       _pangleAd = null;
     }
   }
 
   static void _loadAndShow(
     String adUnitId,
-    int adType,
+    AdPlatform adPlatform,
     int displayInterval, {
     Function? onAdShowedHandle,
     Function? onAdFailedToShowHandle,
@@ -57,7 +60,7 @@ class InterstitialUtils {
   }) {
     if (!_isLooping) return;
 
-    if (adType == 0) {
+    if (adPlatform == AdPlatform.google) {
       _loadAndShowGoogle(
         adUnitId,
         displayInterval,
@@ -67,7 +70,7 @@ class InterstitialUtils {
         onAdClickedHandle: onAdClickedHandle,
         onAdImpressionHandle: onAdImpressionHandle,
       );
-    } else if (adType == 1) {
+    } else if (adPlatform == AdPlatform.pangleGlobal) {
       _loadAndShowPangle(
         adUnitId,
         displayInterval,
@@ -97,7 +100,7 @@ class InterstitialUtils {
             onAdFailedToShowHandle?.call();
             _scheduleNext(
               adUnitId,
-              0,
+              AdPlatform.google,
               displayInterval,
               onAdShowedHandle: onAdShowedHandle,
               onAdFailedToShowHandle: onAdFailedToShowHandle,
@@ -110,7 +113,7 @@ class InterstitialUtils {
             onAdDismissHandle?.call();
             _scheduleNext(
               adUnitId,
-              0,
+              AdPlatform.google,
               displayInterval,
               onAdShowedHandle: onAdShowedHandle,
               onAdFailedToShowHandle: onAdFailedToShowHandle,
@@ -127,7 +130,7 @@ class InterstitialUtils {
         onAdFailedToShowHandle?.call();
         _scheduleNext(
           adUnitId,
-          0,
+          AdPlatform.google,
           displayInterval,
           onAdShowedHandle: onAdShowedHandle,
           onAdFailedToShowHandle: onAdFailedToShowHandle,
@@ -156,7 +159,7 @@ class InterstitialUtils {
         onAdFailedToShowHandle?.call();
         _scheduleNext(
           adUnitId,
-          1,
+          AdPlatform.pangleGlobal,
           displayInterval,
           onAdShowedHandle: onAdShowedHandle,
           onAdFailedToShowHandle: onAdFailedToShowHandle,
@@ -171,7 +174,7 @@ class InterstitialUtils {
         onAdDismissHandle?.call();
         _scheduleNext(
           adUnitId,
-          1,
+          AdPlatform.pangleGlobal,
           displayInterval,
           onAdShowedHandle: onAdShowedHandle,
           onAdFailedToShowHandle: onAdFailedToShowHandle,
@@ -188,7 +191,7 @@ class InterstitialUtils {
 
   static void _scheduleNext(
     String adUnitId,
-    int adType,
+    AdPlatform adPlatform,
     int displayInterval, {
     Function? onAdShowedHandle,
     Function? onAdFailedToShowHandle,
@@ -200,7 +203,7 @@ class InterstitialUtils {
     Future.delayed(Duration(seconds: displayInterval), () {
       _loadAndShow(
         adUnitId,
-        adType,
+        adPlatform,
         displayInterval,
         onAdShowedHandle: onAdShowedHandle,
         onAdFailedToShowHandle: onAdFailedToShowHandle,

@@ -1,0 +1,1 @@
+enum AdPlatform { google, pangleGlobal }

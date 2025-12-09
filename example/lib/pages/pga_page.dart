@@ -112,7 +112,11 @@ class _PgaPageState extends State<PgaPage> {
             ElevatedButton(
               // onPressed: _loadInterstitialAd,
               onPressed: () {
-                InterstitialUtils.start(PangleAdsConfig.interId, 1, 5);
+                InterstitialUtils.start(
+                  PangleAdsConfig.interId,
+                  AdPlatform.pangleGlobal,
+                  5,
+                );
               },
               child: const Text('Show Interstitial Ad'),
             ),
