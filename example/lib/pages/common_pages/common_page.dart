@@ -44,6 +44,7 @@ class _CommonPageState extends State<CommonPage> {
                 children: [
                   ElevatedButton(
                     onPressed: () {
+                      /// 播放开屏广告
                       OpenUtils.loadAndShow(
                         CommonService.openId,
                         CommonService.adPlatform,
@@ -54,6 +55,8 @@ class _CommonPageState extends State<CommonPage> {
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
+                      /// 循环播放插屏广告
+                      /// 间隔 5 秒，实际根据接口
                       InterstitialUtils.start(
                         CommonService.interId,
                         CommonService.adPlatform,
@@ -81,6 +84,7 @@ class _CommonPageState extends State<CommonPage> {
               ),
             ),
           ),
+          /// Banner Widget
           BannerUtils.buildWidget(),
         ],
       ),

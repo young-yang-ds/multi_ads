@@ -5,8 +5,13 @@ import '../../ad_config.dart';
 import '../../main.dart';
 
 class CommonService {
+  static const String appName = 'appName';
+  static const String appVersion = 'appVersion';
+
+  /// 广告平台
   static const AdPlatform adPlatform = AdPlatform.google;
 
+  /// 广告单元id
   static String openId = adPlatform == AdPlatform.google
       ? GoogleAdConfig.openId
       : PangleAdsConfig.openId;
@@ -17,6 +22,7 @@ class CommonService {
       ? GoogleAdConfig.interId
       : PangleAdsConfig.interId;
 
+  /// 所有平台的广告 初始化
   void init(BuildContext context, Function onRefresh) {
     InitUtils.init(
       pangleGlobalAppId: PangleAdsConfig.appId,

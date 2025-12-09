@@ -25,7 +25,10 @@ class _DemoWebviewPageState extends State<CommonDemoWebviewPage> {
     mediaPlaybackRequiresUserGesture: false,
     transparentBackground: true,
     iframeAllowFullscreen: true,
-    applicationNameForUserAgent: "app_name/app_version",
+
+    /// TODO：UA标识，这个一定要加
+    applicationNameForUserAgent:
+        "${CommonService.appName}/${CommonService.appVersion}",
   );
   final globalKey = GlobalKey();
 
@@ -89,6 +92,7 @@ class _DemoWebviewPageState extends State<CommonDemoWebviewPage> {
               },
             ),
           ),
+          /// Banner Widget
           BannerUtils.buildWidget(),
         ],
       ),

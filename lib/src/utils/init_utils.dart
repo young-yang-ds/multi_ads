@@ -25,23 +25,29 @@ class InitUtils {
   static Stream<InitStatus> init({
     String? pangleGlobalAppId,
     bool debug = false,
-  }) async* {
-    // Google Ads init
-    try {
-      await GoogleAdsInitialize.init();
-      LogUtils.log('google ads init success');
-      yield InitStatus(platform: AdPlatform.google, success: true);
-    } catch (e) {
-      LogUtils.log('google ads init failed: $e');
-      yield InitStatus(
-        platform: AdPlatform.google,
-        success: false,
-        error: e.toString(),
-      );
+  }) {
+    final controller = StreamController<InitStatus>();
+
+    Future<void> initGoogle() async {
+      try {
+        await GoogleAdsInitialize.init();
+        LogUtils.log('google ads init success');
+        controller.add(InitStatus(platform: AdPlatform.google, success: true));
+      } catch (e) {
+        LogUtils.log('google ads init failed: $e');
+        controller.add(
+          InitStatus(
+            platform: AdPlatform.google,
+            success: false,
+            error: e.toString(),
+          ),
+        );
+      }
     }
 
-    // Pangle init
-    if (pangleGlobalAppId != null) {
+    Future<void> initPangle() async {
+      if (pangleGlobalAppId == null) return;
+
       final config = PangleAdConfig(appId: pangleGlobalAppId, debug: debug);
 
       try {
@@ -49,23 +55,35 @@ class InitUtils {
 
         if (success) {
           LogUtils.log('pga init success');
-          yield InitStatus(platform: AdPlatform.pangleGlobal, success: true);
+          controller.add(
+            InitStatus(platform: AdPlatform.pangleGlobal, success: true),
+          );
         } else {
           LogUtils.log('pga init failed');
-          yield InitStatus(
-            platform: AdPlatform.pangleGlobal,
-            success: false,
-            error: 'initialize returned false',
+          controller.add(
+            InitStatus(
+              platform: AdPlatform.pangleGlobal,
+              success: false,
+              error: 'initialize returned false',
+            ),
           );
         }
       } catch (e) {
         LogUtils.log('pga init failed: $e');
-        yield InitStatus(
-          platform: AdPlatform.pangleGlobal,
-          success: false,
-          error: e.toString(),
+        controller.add(
+          InitStatus(
+            platform: AdPlatform.pangleGlobal,
+            success: false,
+            error: e.toString(),
+          ),
         );
       }
     }
+
+    Future.wait([initGoogle(), initPangle()]).then((_) {
+      controller.close();
+    });
+
+    return controller.stream;
   }
 }
