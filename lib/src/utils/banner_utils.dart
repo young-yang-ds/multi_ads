@@ -8,7 +8,7 @@ class BannerUtils {
   static Function? _onAdFailedToShowHandle;
   static Function? _onAdClickedHandle;
   static Function? _onAdLoadedRefresh;
-  static Widget? _cachedWidget; // 缓存 widget
+  static Widget? _cachedWidget;
 
   static Future<void> load(
     BuildContext context,
@@ -25,7 +25,7 @@ class BannerUtils {
     _onAdFailedToShowHandle = onAdFailedToShowHandle;
     _onAdClickedHandle = onAdClickedHandle;
     _onAdLoadedRefresh = onAdLoadedRefresh;
-    _cachedWidget = null; // 重新加载时清除缓存
+    _cachedWidget = null;
 
     if (adPlatform == AdPlatform.google) {
       await GoogleBannerAd.load(
@@ -41,7 +41,6 @@ class BannerUtils {
   }
 
   static Widget buildWidget() {
-    // 返回缓存的 widget，避免重复创建
     if (_cachedWidget != null) {
       return _cachedWidget!;
     }
