@@ -156,15 +156,18 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
 
     _platformView ??= _buildPlatformView();
 
-    return Visibility(
-      visible: _isAdLoaded,
-      maintainState: true,
-      maintainSize: false,
-      child: SizedBox(
-        width: size.width,
-        height: size.height,
-        child: _platformView,
-      ),
+    return SizedBox(
+      width: size.width,
+      height: _isAdLoaded ? size.height : 0,
+      child: _isAdLoaded
+          ? _platformView
+          : ClipRect(
+              child: OverflowBox(
+                maxHeight: size.height,
+                alignment: Alignment.topCenter,
+                child: _platformView,
+              ),
+            ),
     );
   }
 
