@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../multi_ads.dart';
-import '../google_ads/google_ads_service/google_banner_ad.dart';
-import '../pangle_global/banner_ad_widget.dart';
-import '../pangle_global/models/ad_error.dart';
-import 'init_utils.dart';
 
 class BannerUtils {
   static AdPlatform _currentAdPlatform = AdPlatform.google;
   static String _adUnitId = '';
-  static Function? _onAdShowedHandle;
   static Function? _onAdFailedToShowHandle;
-  static Function? _onAdDismissHandle;
   static Function? _onAdClickedHandle;
   static Function? _onAdLoadedRefresh;
+  static Widget? _cachedWidget; // 缓存 widget
 
   static Future<void> load(
     BuildContext context,
@@ -27,11 +22,10 @@ class BannerUtils {
   }) async {
     _currentAdPlatform = adPlatform;
     _adUnitId = adUnitId;
-    _onAdShowedHandle = onAdShowedHandle;
     _onAdFailedToShowHandle = onAdFailedToShowHandle;
-    _onAdDismissHandle = onAdDismissHandle;
     _onAdClickedHandle = onAdClickedHandle;
     _onAdLoadedRefresh = onAdLoadedRefresh;
+    _cachedWidget = null; // 重新加载时清除缓存
 
     if (adPlatform == AdPlatform.google) {
       await GoogleBannerAd.load(
@@ -47,10 +41,15 @@ class BannerUtils {
   }
 
   static Widget buildWidget() {
+    // 返回缓存的 widget，避免重复创建
+    if (_cachedWidget != null) {
+      return _cachedWidget!;
+    }
+
     if (_currentAdPlatform == AdPlatform.google) {
-      return GoogleBannerAd.buildWidget();
+      _cachedWidget = GoogleBannerAd.buildWidget();
     } else if (_currentAdPlatform == AdPlatform.pangleGlobal) {
-      return PangleBannerAdWidget(
+      _cachedWidget = PangleBannerAdWidget(
         slotId: _adUnitId,
         adSize: BannerAdSize.anchoredAdaptive,
         onAdLoaded: () {
@@ -64,7 +63,8 @@ class BannerUtils {
         },
       );
     }
-    return const SizedBox.shrink();
+
+    return _cachedWidget ?? const SizedBox.shrink();
   }
 
   static void dispose() {
@@ -72,10 +72,9 @@ class BannerUtils {
       GoogleBannerAd.dispose();
     }
     _adUnitId = '';
-    _onAdShowedHandle = null;
     _onAdFailedToShowHandle = null;
-    _onAdDismissHandle = null;
     _onAdClickedHandle = null;
     _onAdLoadedRefresh = null;
+    _cachedWidget = null;
   }
 }

@@ -156,18 +156,21 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
 
     _platformView ??= _buildPlatformView();
 
-    return SizedBox(
+    // 始终保持相同的 widget 结构，只改变高度和透明度
+    return AnimatedContainer(
+      duration: Duration.zero,
       width: size.width,
       height: _isAdLoaded ? size.height : 0,
-      child: _isAdLoaded
-          ? _platformView
-          : ClipRect(
-              child: OverflowBox(
-                maxHeight: size.height,
-                alignment: Alignment.topCenter,
-                child: _platformView,
-              ),
-            ),
+      child: ClipRect(
+        child: OverflowBox(
+          maxHeight: size.height,
+          alignment: Alignment.topCenter,
+          child: Opacity(
+            opacity: _isAdLoaded ? 1.0 : 0.0,
+            child: _platformView,
+          ),
+        ),
+      ),
     );
   }
 
