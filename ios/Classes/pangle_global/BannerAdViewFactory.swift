@@ -23,11 +23,13 @@ class BannerAdView: NSObject, FlutterPlatformView {
     private var bannerView: UIView
     private var bannerAd: PAGBannerAd?
     private var channel: FlutterMethodChannel
+    private var adSize: PAGBannerAdSize?
     
     init(frame: CGRect, viewId: Int64, args: Any?, messenger: FlutterBinaryMessenger) {
         channel = FlutterMethodChannel(name: "multi_ads/pangle_global", binaryMessenger: messenger)
         bannerView = UIView(frame: frame)
         bannerView.backgroundColor = .clear
+        bannerView.clipsToBounds = true
         super.init()
         
         if let args = args as? [String: Any],
@@ -57,6 +59,7 @@ class BannerAdView: NSObject, FlutterPlatformView {
             bannerSize = kPAGBannerSize320x50
         }
         
+        self.adSize = bannerSize
         let request = PAGBannerRequest(bannerSize: bannerSize)
         
         PAGBannerAd.load(withSlotID: slotId, request: request) { [weak self] ad, error in
@@ -84,8 +87,19 @@ class BannerAdView: NSObject, FlutterPlatformView {
                 
                 DispatchQueue.main.async {
                     let adView = ad.bannerView
+                    // 先移除旧的子视图
+                    self.bannerView.subviews.forEach { $0.removeFromSuperview() }
                     self.bannerView.addSubview(adView)
+                    
+                    // 使用 autoresizing 让广告 view 自动适应父 view 尺寸
+                    adView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
                     adView.frame = self.bannerView.bounds
+                    
+                    // 如果 bounds 是 zero，使用广告尺寸
+                    if self.bannerView.bounds.isEmpty, let size = self.adSize {
+                        adView.frame = CGRect(x: 0, y: 0, width: size.size.width, height: size.size.height)
+                    }
+                    
                     adView.isUserInteractionEnabled = true
                     self.bannerView.isUserInteractionEnabled = true
                     self.channel.invokeMethod("onBannerAdLoaded", arguments: nil)
