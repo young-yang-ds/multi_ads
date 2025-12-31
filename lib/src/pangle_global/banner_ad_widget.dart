@@ -109,6 +109,7 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
   late final String _listenerId;
   final _channelHandler = _BannerChannelHandler();
   bool _isAdLoaded = false;
+  Widget? _platformView;
 
   void onAdLoadedInternal() {
     if (mounted) {
@@ -153,11 +154,13 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
     pangleLog(
         '[Flutter Banner] Building banner widget - slotId: ${widget.slotId}, size: ${size.width}x${size.height}, loaded: $_isAdLoaded');
 
+    _platformView ??= _buildPlatformView();
+
     if (_isAdLoaded) {
       return SizedBox(
         width: size.width,
         height: size.height,
-        child: _buildPlatformView(),
+        child: _platformView,
       );
     }
 
@@ -166,7 +169,7 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
       height: 0,
       child: Opacity(
         opacity: 0,
-        child: _buildPlatformView(),
+        child: _platformView,
       ),
     );
   }
