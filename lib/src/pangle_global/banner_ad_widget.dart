@@ -156,13 +156,9 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
 
     _platformView ??= _buildPlatformView();
 
-    if (!_isAdLoaded) {
-      return const SizedBox.shrink();
-    }
-
     return SizedBox(
       width: size.width,
-      height: size.height,
+      height: _isAdLoaded ? size.height : 0,
       child: _platformView,
     );
   }
