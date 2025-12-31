@@ -161,14 +161,12 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
       );
     }
 
-    return SizedBox.shrink(
-      child: OverflowBox(
-        maxWidth: size.width,
-        maxHeight: size.height,
-        child: Opacity(
-          opacity: 0,
-          child: _buildPlatformView(),
-        ),
+    return SizedBox(
+      width: size.width,
+      height: 0,
+      child: Opacity(
+        opacity: 0,
+        child: _buildPlatformView(),
       ),
     );
   }

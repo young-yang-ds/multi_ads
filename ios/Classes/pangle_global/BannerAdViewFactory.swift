@@ -27,6 +27,7 @@ class BannerAdView: NSObject, FlutterPlatformView {
     init(frame: CGRect, viewId: Int64, args: Any?, messenger: FlutterBinaryMessenger) {
         channel = FlutterMethodChannel(name: "multi_ads/pangle_global", binaryMessenger: messenger)
         bannerView = UIView(frame: frame)
+        bannerView.backgroundColor = .clear
         super.init()
         
         if let args = args as? [String: Any],
