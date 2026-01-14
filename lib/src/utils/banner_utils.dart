@@ -9,38 +9,50 @@ class BannerUtils {
   static Function? _onAdClickedHandle;
   static Function? _onAdLoadedRefresh;
   static Widget? _cachedWidget;
+  static bool _isAdLoaded = false;
 
   static Future<void> load(
-    BuildContext context,
-    String adUnitId,
-    AdPlatform adPlatform, {
-    Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
-    Function? onAdDismissHandle,
-    Function? onAdClickedHandle,
-    Function? onAdLoadedRefresh,
-  }) async {
+      BuildContext context,
+      String adUnitId,
+      AdPlatform adPlatform, {
+        Function? onAdShowedHandle,
+        Function? onAdFailedToShowHandle,
+        Function? onAdDismissHandle,
+        Function? onAdClickedHandle,
+        Function? onAdLoadedRefresh,
+      }) async {
     _currentAdPlatform = adPlatform;
     _adUnitId = adUnitId;
     _onAdFailedToShowHandle = onAdFailedToShowHandle;
     _onAdClickedHandle = onAdClickedHandle;
     _onAdLoadedRefresh = onAdLoadedRefresh;
     _cachedWidget = null;
+    _isAdLoaded = false;
 
     if (adPlatform == AdPlatform.google) {
       await GoogleBannerAd.load(
         context,
         adUnitId,
         onAdShowedHandle: onAdShowedHandle,
-        onAdFailedToShowHandle: onAdFailedToShowHandle,
+        onAdFailedToShowHandle: () {
+          _isAdLoaded = false;
+          onAdFailedToShowHandle?.call();
+        },
         onAdDismissHandle: onAdDismissHandle,
         onAdClickedHandle: onAdClickedHandle,
-        onAdLoadedRefresh: onAdLoadedRefresh,
+        onAdLoadedRefresh: () {
+          _isAdLoaded = true;
+          onAdLoadedRefresh?.call();
+        },
       );
     }
   }
 
   static Widget buildWidget() {
+    if (_currentAdPlatform == AdPlatform.google && !_isAdLoaded) {
+      return const SizedBox.shrink();
+    }
+
     if (_cachedWidget != null) {
       return _cachedWidget!;
     }
@@ -75,5 +87,6 @@ class BannerUtils {
     _onAdClickedHandle = null;
     _onAdLoadedRefresh = null;
     _cachedWidget = null;
+    _isAdLoaded = false;
   }
 }
