@@ -53,6 +53,9 @@ android {
         
         // Pangle Ads SDK
         implementation("com.pangle.global:ads-sdk:5.9.0.8")
+        
+        // Vungle Ads SDK
+        implementation("com.vungle:vungle-ads:7.6.3")
     }
 
     testOptions {

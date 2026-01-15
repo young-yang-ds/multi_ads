@@ -12,15 +12,15 @@ class BannerUtils {
   static bool _isAdLoaded = false;
 
   static Future<void> load(
-      BuildContext context,
-      String adUnitId,
-      AdPlatform adPlatform, {
-        Function? onAdShowedHandle,
-        Function? onAdFailedToShowHandle,
-        Function? onAdDismissHandle,
-        Function? onAdClickedHandle,
-        Function? onAdLoadedRefresh,
-      }) async {
+    BuildContext context,
+    String adUnitId,
+    AdPlatform adPlatform, {
+    Function? onAdShowedHandle,
+    Function? onAdFailedToShowHandle,
+    Function? onAdDismissHandle,
+    Function? onAdClickedHandle,
+    Function? onAdLoadedRefresh,
+  }) async {
     _currentAdPlatform = adPlatform;
     _adUnitId = adUnitId;
     _onAdFailedToShowHandle = onAdFailedToShowHandle;
@@ -45,6 +45,10 @@ class BannerUtils {
           onAdLoadedRefresh?.call();
         },
       );
+    } else if (adPlatform == AdPlatform.vungle) {
+      // Vungle Banner 直接通过 Widget 加载，这里预先标记状态
+      _isAdLoaded = true;
+      onAdLoadedRefresh?.call();
     }
   }
 
@@ -67,6 +71,22 @@ class BannerUtils {
           _onAdLoadedRefresh?.call();
         },
         onAdLoadFailed: (PangleAdError error) {
+          _onAdFailedToShowHandle?.call();
+        },
+        onAdClicked: () {
+          _onAdClickedHandle?.call();
+        },
+      );
+    } else if (_currentAdPlatform == AdPlatform.vungle) {
+      _cachedWidget = VungleBannerAdWidget(
+        placementId: _adUnitId,
+        adSize: VungleBannerAdSize.banner,
+        onAdLoaded: () {
+          _isAdLoaded = true;
+          _onAdLoadedRefresh?.call();
+        },
+        onAdLoadFailed: (VungleAdError error) {
+          _isAdLoaded = false;
           _onAdFailedToShowHandle?.call();
         },
         onAdClicked: () {

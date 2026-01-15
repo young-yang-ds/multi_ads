@@ -1,11 +1,12 @@
 import '../../multi_ads.dart';
 import '../google_ads/google_ads_service/google_open_ad.dart';
 import '../pangle_global/splash_ad.dart';
-import 'init_utils.dart';
+import '../vungle/app_open_ad.dart';
 import 'log_utils.dart';
 
 class OpenUtils {
   static PangleSplashAd? _pangleSplashAd;
+  static VungleAppOpenAd? _vungleAppOpenAd;
 
   static void loadAndShow(
     String adUnitId,
@@ -48,11 +49,35 @@ class OpenUtils {
         },
       );
       _pangleSplashAd?.load();
+    } else if (adPlatform == AdPlatform.vungle) {
+      _vungleAppOpenAd = VungleAppOpenAd(
+        placementId: adUnitId,
+        onAdLoaded: () {
+          _vungleAppOpenAd?.show();
+        },
+        onAdLoadFailed: (error) {
+          onAdFailedToShowHandle?.call();
+        },
+        onAdShowed: () {
+          onAdShowedHandle?.call();
+        },
+        onAdClicked: () {
+          onAdClickedHandle?.call();
+        },
+        onAdDismissed: () {
+          onAdDismissHandle?.call();
+        },
+        onAdFailedToPlay: (error) {
+          onAdFailedToShowHandle?.call();
+        },
+      );
+      _vungleAppOpenAd?.load();
     }
   }
 
   static void dispose() {
     GoogleOpenAd.dispose();
     _pangleSplashAd = null;
+    _vungleAppOpenAd = null;
   }
 }

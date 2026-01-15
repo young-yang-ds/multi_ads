@@ -1,1 +1,1 @@
-enum AdPlatform { google, pangleGlobal }
+enum AdPlatform { google, pangleGlobal, vungle }

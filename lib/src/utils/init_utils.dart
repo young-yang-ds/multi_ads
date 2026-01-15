@@ -24,6 +24,7 @@ class InitStatus {
 class InitUtils {
   static Stream<InitStatus> init({
     String? pangleGlobalAppId,
+    String? vungleAppId,
     bool debug = false,
   }) {
     final controller = StreamController<InitStatus>();
@@ -80,7 +81,42 @@ class InitUtils {
       }
     }
 
-    Future.wait([initGoogle(), initPangle()]).then((_) {
+    Future<void> initVungle() async {
+      if (vungleAppId == null) return;
+
+      final config = VungleAdConfig(appId: vungleAppId, debug: debug);
+
+      try {
+        final success = await VunglePlatform.instance.initialize(config);
+
+        if (success) {
+          LogUtils.log('vungle init success');
+          controller.add(
+            InitStatus(platform: AdPlatform.vungle, success: true),
+          );
+        } else {
+          LogUtils.log('vungle init failed');
+          controller.add(
+            InitStatus(
+              platform: AdPlatform.vungle,
+              success: false,
+              error: 'initialize returned false',
+            ),
+          );
+        }
+      } catch (e) {
+        LogUtils.log('vungle init failed: $e');
+        controller.add(
+          InitStatus(
+            platform: AdPlatform.vungle,
+            success: false,
+            error: e.toString(),
+          ),
+        );
+      }
+    }
+
+    Future.wait([initGoogle(), initPangle(), initVungle()]).then((_) {
       controller.close();
     });
 

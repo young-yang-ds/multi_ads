@@ -1,13 +1,14 @@
 import '../../multi_ads.dart';
 import '../google_ads/google_ads_service/google_interstitial_ad.dart';
 import '../pangle_global/interstitial_ad.dart';
-import 'init_utils.dart';
+import '../vungle/interstitial_ad.dart';
 import 'log_utils.dart';
 
 class InterstitialUtils {
   static bool _isLooping = false;
   static AdPlatform _currentAdPlatform = AdPlatform.google;
   static PangleInterstitialAd? _pangleAd;
+  static VungleInterstitialAd? _vungleAd;
 
   static void start(
     String adUnitId,
@@ -45,6 +46,8 @@ class InterstitialUtils {
       GoogleInterstitialAd.dispose();
     } else if (_currentAdPlatform == AdPlatform.pangleGlobal) {
       _pangleAd = null;
+    } else if (_currentAdPlatform == AdPlatform.vungle) {
+      _vungleAd = null;
     }
   }
 
@@ -78,6 +81,16 @@ class InterstitialUtils {
         onAdFailedToShowHandle: onAdFailedToShowHandle,
         onAdDismissHandle: onAdDismissHandle,
         onAdClickedHandle: onAdClickedHandle,
+      );
+    } else if (adPlatform == AdPlatform.vungle) {
+      _loadAndShowVungle(
+        adUnitId,
+        displayInterval,
+        onAdShowedHandle: onAdShowedHandle,
+        onAdFailedToShowHandle: onAdFailedToShowHandle,
+        onAdDismissHandle: onAdDismissHandle,
+        onAdClickedHandle: onAdClickedHandle,
+        onAdImpressionHandle: onAdImpressionHandle,
       );
     }
   }
@@ -187,6 +200,72 @@ class InterstitialUtils {
       },
     );
     _pangleAd?.load();
+  }
+
+  static void _loadAndShowVungle(
+    String adUnitId,
+    int displayInterval, {
+    Function? onAdShowedHandle,
+    Function? onAdFailedToShowHandle,
+    Function? onAdDismissHandle,
+    Function? onAdClickedHandle,
+    Function? onAdImpressionHandle,
+  }) {
+    _vungleAd = VungleInterstitialAd(
+      placementId: adUnitId,
+      onAdLoaded: () {
+        _vungleAd?.show();
+      },
+      onAdLoadFailed: (error) {
+        onAdFailedToShowHandle?.call();
+        _scheduleNext(
+          adUnitId,
+          AdPlatform.vungle,
+          displayInterval,
+          onAdShowedHandle: onAdShowedHandle,
+          onAdFailedToShowHandle: onAdFailedToShowHandle,
+          onAdDismissHandle: onAdDismissHandle,
+          onAdClickedHandle: onAdClickedHandle,
+          onAdImpressionHandle: onAdImpressionHandle,
+        );
+      },
+      onAdShowed: () {
+        onAdShowedHandle?.call();
+      },
+      onAdDismissed: () {
+        onAdDismissHandle?.call();
+        _scheduleNext(
+          adUnitId,
+          AdPlatform.vungle,
+          displayInterval,
+          onAdShowedHandle: onAdShowedHandle,
+          onAdFailedToShowHandle: onAdFailedToShowHandle,
+          onAdDismissHandle: onAdDismissHandle,
+          onAdClickedHandle: onAdClickedHandle,
+          onAdImpressionHandle: onAdImpressionHandle,
+        );
+      },
+      onAdClicked: () {
+        onAdClickedHandle?.call();
+      },
+      onAdImpression: () {
+        onAdImpressionHandle?.call();
+      },
+      onAdFailedToPlay: (error) {
+        onAdFailedToShowHandle?.call();
+        _scheduleNext(
+          adUnitId,
+          AdPlatform.vungle,
+          displayInterval,
+          onAdShowedHandle: onAdShowedHandle,
+          onAdFailedToShowHandle: onAdFailedToShowHandle,
+          onAdDismissHandle: onAdDismissHandle,
+          onAdClickedHandle: onAdClickedHandle,
+          onAdImpressionHandle: onAdImpressionHandle,
+        );
+      },
+    );
+    _vungleAd?.load();
   }
 
   static void _scheduleNext(

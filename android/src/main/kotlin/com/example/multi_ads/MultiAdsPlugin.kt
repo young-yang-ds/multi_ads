@@ -9,6 +9,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import com.example.multi_ads.pangle_global.PangleAdsHandler
+import com.example.multi_ads.vungle.VungleAdsHandler
 
 /** MultiAdsPlugin */
 class MultiAdsPlugin :
@@ -21,6 +22,7 @@ class MultiAdsPlugin :
     // when the Flutter Engine is detached from the Activity
     private lateinit var channel: MethodChannel
     private var pangleAdsHandler: PangleAdsHandler? = null
+    private var vungleAdsHandler: VungleAdsHandler? = null
     private var activity: Activity? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -29,6 +31,9 @@ class MultiAdsPlugin :
         
         // Initialize Pangle Ads Handler
         pangleAdsHandler = PangleAdsHandler(flutterPluginBinding)
+        
+        // Initialize Vungle Ads Handler
+        vungleAdsHandler = VungleAdsHandler(flutterPluginBinding)
     }
 
     override fun onMethodCall(
@@ -46,25 +51,32 @@ class MultiAdsPlugin :
         channel.setMethodCallHandler(null)
         pangleAdsHandler?.dispose()
         pangleAdsHandler = null
+        vungleAdsHandler?.dispose()
+        vungleAdsHandler = null
     }
     
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
         pangleAdsHandler?.setActivity(activity)
+        vungleAdsHandler?.setActivity(activity)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
         activity = null
         pangleAdsHandler?.setActivity(null)
+        vungleAdsHandler?.setActivity(null)
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
         activity = binding.activity
         pangleAdsHandler?.setActivity(activity)
+        vungleAdsHandler?.setActivity(activity)
     }
 
     override fun onDetachedFromActivity() {
         activity = null
         pangleAdsHandler?.setActivity(null)
+        vungleAdsHandler?.setActivity(null)
     }
 }
+

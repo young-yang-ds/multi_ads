@@ -16,6 +16,7 @@ A new Flutter project.
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
   s.dependency 'Ads-Global', '7.8.0.3'
+  s.dependency 'VungleAds', '~> 7.0'
   s.platform = :ios, '13.0'
   s.static_framework = true
 

@@ -9,23 +9,47 @@ class CommonService {
   static const String appVersion = 'appVersion';
 
   /// 广告平台
-  static const AdPlatform adPlatform = AdPlatform.google;
+  static const AdPlatform adPlatform = AdPlatform.vungle;
 
   /// 广告单元id
-  static String openId = adPlatform == AdPlatform.google
-      ? GoogleAdConfig.openId
-      : PangleAdsConfig.openId;
-  static String bannerId = adPlatform == AdPlatform.google
-      ? GoogleAdConfig.bannerId
-      : PangleAdsConfig.bannerId;
-  static String interId = adPlatform == AdPlatform.google
-      ? GoogleAdConfig.interId
-      : PangleAdsConfig.interId;
+  static String get openId {
+    switch (adPlatform) {
+      case AdPlatform.google:
+        return GoogleAdConfig.openId;
+      case AdPlatform.pangleGlobal:
+        return PangleAdsConfig.openId;
+      case AdPlatform.vungle:
+        return VungleAdsConfig.openId;
+    }
+  }
+
+  static String get bannerId {
+    switch (adPlatform) {
+      case AdPlatform.google:
+        return GoogleAdConfig.bannerId;
+      case AdPlatform.pangleGlobal:
+        return PangleAdsConfig.bannerId;
+      case AdPlatform.vungle:
+        return VungleAdsConfig.bannerId;
+    }
+  }
+
+  static String get interId {
+    switch (adPlatform) {
+      case AdPlatform.google:
+        return GoogleAdConfig.interId;
+      case AdPlatform.pangleGlobal:
+        return PangleAdsConfig.interId;
+      case AdPlatform.vungle:
+        return VungleAdsConfig.interId;
+    }
+  }
 
   /// 所有平台的广告 初始化
   void init(BuildContext context, Function onRefresh) {
     InitUtils.init(
       pangleGlobalAppId: PangleAdsConfig.appId,
+      vungleAppId: VungleAdsConfig.appId,
       debug: true,
     ).listen((status) {
       demoLog(status.toString());
@@ -40,6 +64,8 @@ class CommonService {
             },
           );
         case AdPlatform.pangleGlobal:
+          onRefresh();
+        case AdPlatform.vungle:
           onRefresh();
       }
     });
