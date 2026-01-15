@@ -1,6 +1,8 @@
 package com.example.multi_ads.vungle
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.FrameLayout
@@ -40,6 +42,7 @@ class VungleBannerAdPlatformView(
     private val containerView: FrameLayout = FrameLayout(context)
     private var bannerView: VungleBannerView? = null
     private val listenerId: String = creationParams["listenerId"] as? String ?: ""
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     init {
         val placementId = creationParams["placementId"] as? String ?: ""
@@ -74,11 +77,14 @@ class VungleBannerAdPlatformView(
     }
 
     private fun sendCallback(methodName: String, additionalData: Map<String, Any?> = emptyMap()) {
-        val args = mutableMapOf<String, Any?>(
-            "listenerId" to listenerId
-        )
-        args.putAll(additionalData)
-        channel.invokeMethod(methodName, args)
+        mainHandler.post {
+            val args = mutableMapOf<String, Any?>(
+                "listenerId" to listenerId
+            )
+            args.putAll(additionalData)
+            Log.d(TAG, "Sending callback: $methodName with listenerId: $listenerId")
+            channel.invokeMethod(methodName, args)
+        }
     }
 
     // BannerAdListener callbacks
@@ -120,3 +126,4 @@ class VungleBannerAdPlatformView(
         Log.e(TAG, "onAdFailedToPlay - listenerId: $listenerId, error: ${adError.localizedMessage}")
     }
 }
+

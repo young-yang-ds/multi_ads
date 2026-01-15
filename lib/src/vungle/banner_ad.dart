@@ -22,26 +22,41 @@ enum VungleBannerAdSize {
   mrec,
 }
 
-/// Manager for Vungle Banner Ad callbacks
-class _VungleBannerAdCallbackManager {
-  static final _VungleBannerAdCallbackManager _instance =
-      _VungleBannerAdCallbackManager._internal();
+/// Global callback manager for Vungle Banner Ads
+class _VungleBannerCallbackManager {
+  static final _VungleBannerCallbackManager _instance =
+      _VungleBannerCallbackManager._internal();
 
-  factory _VungleBannerAdCallbackManager() => _instance;
+  factory _VungleBannerCallbackManager() => _instance;
 
   static const MethodChannel _channel = MethodChannel('multi_ads/vungle');
-  final Map<String, VungleBannerAd> _listeners = {};
+
+  // For VungleBannerAd (preload mode)
+  final Map<String, VungleBannerAd> _adListeners = {};
+
+  // For VungleBannerAdWidget (widget mode)
+  final Map<String, _VungleBannerAdWidgetState> _widgetListeners = {};
+
   bool _isInitialized = false;
 
-  _VungleBannerAdCallbackManager._internal();
+  _VungleBannerCallbackManager._internal();
 
-  void register(VungleBannerAd ad) {
-    _listeners[ad.listenerId] = ad;
+  void registerAd(VungleBannerAd ad) {
+    _adListeners[ad.listenerId] = ad;
     _ensureInitialized();
   }
 
-  void unregister(String listenerId) {
-    _listeners.remove(listenerId);
+  void unregisterAd(String listenerId) {
+    _adListeners.remove(listenerId);
+  }
+
+  void registerWidget(_VungleBannerAdWidgetState widget) {
+    _widgetListeners[widget._listenerId] = widget;
+    _ensureInitialized();
+  }
+
+  void unregisterWidget(String listenerId) {
+    _widgetListeners.remove(listenerId);
   }
 
   void _ensureInitialized() {
@@ -49,48 +64,83 @@ class _VungleBannerAdCallbackManager {
     _isInitialized = true;
 
     _channel.setMethodCallHandler((call) async {
-      vungleLog('[VungleBannerAdManager] Received method call: ${call.method}');
+      vungleLog('[VungleBannerCallbackManager] Received: ${call.method}');
 
       final args = call.arguments as Map?;
       final listenerId = args?['listenerId'] as String?;
 
       if (listenerId == null) {
-        vungleLog('[VungleBannerAdManager] No listenerId in callback');
+        vungleLog('[VungleBannerCallbackManager] No listenerId in callback');
         return;
       }
 
-      final ad = _listeners[listenerId];
-      if (ad == null) {
-        vungleLog('[VungleBannerAdManager] No listener found for: $listenerId');
+      vungleLog('[VungleBannerCallbackManager] ListenerId: $listenerId');
+
+      // Try to find in ad listeners first
+      final ad = _adListeners[listenerId];
+      if (ad != null) {
+        _handleAdCallback(call.method, ad, args);
         return;
       }
 
-      switch (call.method) {
-        case 'onBannerAdLoaded':
-          ad._handleLoaded();
-          break;
-        case 'onBannerAdLoadFailed':
-          final error = VungleAdError.fromJson(
-            Map<String, dynamic>.from(args!['error'] as Map? ?? {}),
-          );
-          ad._handleLoadFailed(error);
-          break;
-        case 'onBannerAdClicked':
-          ad._handleClicked();
-          break;
-        case 'onBannerAdShowed':
-          ad._handleShowed();
-          break;
-        case 'onBannerAdImpression':
-          ad._handleImpression();
-          break;
-        case 'onBannerAdClosed':
-          ad._handleClosed();
-          break;
-        default:
-          vungleLog('[VungleBannerAdManager] Unknown method: ${call.method}');
+      // Then try widget listeners
+      final widget = _widgetListeners[listenerId];
+      if (widget != null) {
+        _handleWidgetCallback(call.method, widget, args);
+        return;
       }
+
+      vungleLog(
+        '[VungleBannerCallbackManager] No listener found for: $listenerId',
+      );
     });
+  }
+
+  void _handleAdCallback(String method, VungleBannerAd ad, Map? args) {
+    switch (method) {
+      case 'onBannerAdLoaded':
+        ad._handleLoaded();
+        break;
+      case 'onBannerAdLoadFailed':
+        final error = VungleAdError.fromJson(
+          Map<String, dynamic>.from(args?['error'] as Map? ?? {}),
+        );
+        ad._handleLoadFailed(error);
+        break;
+      case 'onBannerAdClicked':
+        ad._handleClicked();
+        break;
+      case 'onBannerAdShowed':
+        ad._handleShowed();
+        break;
+      case 'onBannerAdImpression':
+        ad._handleImpression();
+        break;
+      case 'onBannerAdClosed':
+        ad._handleClosed();
+        break;
+    }
+  }
+
+  void _handleWidgetCallback(
+    String method,
+    _VungleBannerAdWidgetState widget,
+    Map? args,
+  ) {
+    switch (method) {
+      case 'onBannerAdLoaded':
+        widget._handleLoaded();
+        break;
+      case 'onBannerAdLoadFailed':
+        final error = VungleAdError.fromJson(
+          Map<String, dynamic>.from(args?['error'] as Map? ?? {}),
+        );
+        widget._handleLoadFailed(error);
+        break;
+      case 'onBannerAdClicked':
+        widget._handleClicked();
+        break;
+    }
   }
 }
 
@@ -120,7 +170,7 @@ class VungleBannerAd {
     this.onAdClosed,
   }) {
     _listenerId = '${placementId}_${DateTime.now().millisecondsSinceEpoch}';
-    _VungleBannerAdCallbackManager().register(this);
+    _VungleBannerCallbackManager().registerAd(this);
   }
 
   void _handleLoaded() {
@@ -199,7 +249,7 @@ class VungleBannerAd {
       vungleLog('[VungleBannerAd] Dispose error: $e');
     }
 
-    _VungleBannerAdCallbackManager().unregister(_listenerId);
+    _VungleBannerCallbackManager().unregisterAd(_listenerId);
     _isLoaded = false;
     _isLoading = false;
   }
@@ -231,7 +281,6 @@ class VungleBannerAdWidget extends StatefulWidget {
 }
 
 class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
-  static const MethodChannel _channel = MethodChannel('multi_ads/vungle');
   late final String _listenerId;
   bool _isAdLoaded = false;
   Widget? _platformView;
@@ -241,36 +290,35 @@ class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
     super.initState();
     _listenerId =
         '${widget.placementId}_${DateTime.now().millisecondsSinceEpoch}';
-    _setupChannelHandler();
+    _VungleBannerCallbackManager().registerWidget(this);
   }
 
-  void _setupChannelHandler() {
-    _channel.setMethodCallHandler((call) async {
-      final args = call.arguments as Map?;
-      final listenerId = args?['listenerId'] as String?;
+  @override
+  void dispose() {
+    _VungleBannerCallbackManager().unregisterWidget(_listenerId);
+    super.dispose();
+  }
 
-      if (listenerId != _listenerId) return;
+  void _handleLoaded() {
+    vungleLog('[VungleBannerAdWidget] Ad loaded - listenerId: $_listenerId');
+    if (mounted) {
+      setState(() {
+        _isAdLoaded = true;
+      });
+    }
+    widget.onAdLoaded?.call();
+  }
 
-      switch (call.method) {
-        case 'onBannerAdLoaded':
-          if (mounted) {
-            setState(() {
-              _isAdLoaded = true;
-            });
-          }
-          widget.onAdLoaded?.call();
-          break;
-        case 'onBannerAdLoadFailed':
-          final error = VungleAdError.fromJson(
-            Map<String, dynamic>.from(args!['error'] as Map? ?? {}),
-          );
-          widget.onAdLoadFailed?.call(error);
-          break;
-        case 'onBannerAdClicked':
-          widget.onAdClicked?.call();
-          break;
-      }
-    });
+  void _handleLoadFailed(VungleAdError error) {
+    vungleLog(
+      '[VungleBannerAdWidget] Ad load failed: ${error.code} - ${error.message}',
+    );
+    widget.onAdLoadFailed?.call(error);
+  }
+
+  void _handleClicked() {
+    vungleLog('[VungleBannerAdWidget] Ad clicked');
+    widget.onAdClicked?.call();
   }
 
   Size _getAdSize() {

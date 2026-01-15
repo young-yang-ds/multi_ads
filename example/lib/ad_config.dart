@@ -14,9 +14,10 @@ class GoogleAdConfig {
 }
 
 class VungleAdsConfig {
-  /// 官方测试id (来自 Vungle 示例项目)
-  static const appId = '643d1db1143d3bfd6bcf6510';
-  static const interId = 'INTERSTITIAL_NON_BIDDING-5048200';
-  static const bannerId = 'BANNER_NON_BIDDING-4570799';
-  static const openId = 'APPOPEN_NON_BIDDING-0475560';
+  /// iOS 官方测试id
+  static const appId = '5e13cc9d61880b27a65bf735';
+  static const interId = 'INTERSTITIAL02-1468016';
+  static const bannerId = 'BANNER04-8166553';
+  static const openId =
+      'INTERSTITIAL02-1468016'; // Vungle iOS 没有专门的 AppOpen，使用 Interstitial
 }

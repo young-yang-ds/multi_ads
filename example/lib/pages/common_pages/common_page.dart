@@ -68,6 +68,14 @@ class _CommonPageState extends State<CommonPage> {
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
+                      /// 停止循环播放插屏广告
+                      InterstitialUtils.stop();
+                    },
+                    child: const Text('Stop Interstitial loop'),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -84,6 +92,7 @@ class _CommonPageState extends State<CommonPage> {
               ),
             ),
           ),
+
           /// Banner Widget
           BannerUtils.buildWidget(),
         ],
