@@ -10,7 +10,7 @@ class GoogleBannerAd {
     BuildContext context,
     String adUnitId, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(int code, String message)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdLoadedRefresh,
@@ -45,7 +45,7 @@ class GoogleBannerAd {
           onAdClickedHandle?.call();
         },
         onAdFailedToLoad: (ad, err) {
-          onAdFailedToShowHandle?.call();
+          onAdFailedToShowHandle?.call(err.code, err.message);
           _isLoading = false;
           ad.dispose();
           _bannerAd = null;

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../multi_ads.dart';
+import '../models/ad_error.dart';
 
 class BannerUtils {
   static AdPlatform _currentAdPlatform = AdPlatform.google;
   static String _adUnitId = '';
-  static Function? _onAdFailedToShowHandle;
+  static Function(AdError error)? _onAdFailedToShowHandle;
   static Function? _onAdClickedHandle;
   static Function? _onAdLoadedRefresh;
   static Widget? _cachedWidget;
@@ -16,7 +17,7 @@ class BannerUtils {
     String adUnitId,
     AdPlatform adPlatform, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(AdError error)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdLoadedRefresh,
@@ -34,9 +35,11 @@ class BannerUtils {
         context,
         adUnitId,
         onAdShowedHandle: onAdShowedHandle,
-        onAdFailedToShowHandle: () {
+        onAdFailedToShowHandle: (code, message) {
           _isAdLoaded = false;
-          onAdFailedToShowHandle?.call();
+          onAdFailedToShowHandle?.call(
+            AdError(code: code, message: message, platform: 'google'),
+          );
         },
         onAdDismissHandle: onAdDismissHandle,
         onAdClickedHandle: onAdClickedHandle,
@@ -71,7 +74,13 @@ class BannerUtils {
           _onAdLoadedRefresh?.call();
         },
         onAdLoadFailed: (PangleAdError error) {
-          _onAdFailedToShowHandle?.call();
+          _onAdFailedToShowHandle?.call(
+            AdError(
+              code: error.code,
+              message: error.message,
+              platform: 'pangle',
+            ),
+          );
         },
         onAdClicked: () {
           _onAdClickedHandle?.call();
@@ -87,7 +96,13 @@ class BannerUtils {
         },
         onAdLoadFailed: (VungleAdError error) {
           _isAdLoaded = false;
-          _onAdFailedToShowHandle?.call();
+          _onAdFailedToShowHandle?.call(
+            AdError(
+              code: error.code,
+              message: error.message,
+              platform: 'vungle',
+            ),
+          );
         },
         onAdClicked: () {
           _onAdClickedHandle?.call();

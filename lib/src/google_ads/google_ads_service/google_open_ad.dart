@@ -8,7 +8,7 @@ class GoogleOpenAd {
   static void loadAndShow(
     String adUnitId, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(int code, String message)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
   }) {
@@ -29,7 +29,7 @@ class GoogleOpenAd {
               LogUtils.log('Open ad showed', tag: 'google ads');
             },
             onAdFailedToShowFullScreenContent: (ad, error) {
-              onAdFailedToShowHandle?.call();
+              onAdFailedToShowHandle?.call(error.code, error.message);
               _isShowingAd = false;
               ad.dispose();
               _appOpenAd = null;
@@ -51,7 +51,7 @@ class GoogleOpenAd {
           _appOpenAd?.show();
         },
         onAdFailedToLoad: (error) {
-          onAdFailedToShowHandle?.call();
+          onAdFailedToShowHandle?.call(error.code, error.message);
 
           LogUtils.log('Open ad load failed: $error', tag: 'google ads');
         },

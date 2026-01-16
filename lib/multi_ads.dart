@@ -3,3 +3,4 @@ export 'src/google_ads/google_ads.dart';
 export 'src/vungle/vungle_ads.dart';
 export 'src/utils/index.dart';
 export 'src/enum/ad_platform.dart';
+export 'src/models/ad_error.dart';

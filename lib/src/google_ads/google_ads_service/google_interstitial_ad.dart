@@ -9,7 +9,7 @@ class GoogleInterstitialAd {
   static void load(
     String adUnitId, {
     Function? onAdLoadedHandle,
-    Function? onAdFailedToLoadHandle,
+    Function(int code, String message)? onAdFailedToLoadHandle,
   }) {
     if (_isLoading) return;
     _isLoading = true;
@@ -26,7 +26,7 @@ class GoogleInterstitialAd {
         },
         onAdFailedToLoad: (LoadAdError error) {
           _isLoading = false;
-          onAdFailedToLoadHandle?.call();
+          onAdFailedToLoadHandle?.call(error.code, error.message);
           LogUtils.log('Inter ad load failed: $error', tag: 'google ads');
         },
       ),
@@ -35,13 +35,13 @@ class GoogleInterstitialAd {
 
   static void show({
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(int code, String message)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
   }) {
     if (_interstitialAd == null) {
-      onAdFailedToShowHandle?.call();
+      onAdFailedToShowHandle?.call(-1, 'Ad not loaded');
       return;
     }
 
@@ -51,7 +51,7 @@ class GoogleInterstitialAd {
         LogUtils.log('Inter ad showed', tag: 'google ads');
       },
       onAdFailedToShowFullScreenContent: (ad, err) {
-        onAdFailedToShowHandle?.call();
+        onAdFailedToShowHandle?.call(err.code, err.message);
         ad.dispose();
         _interstitialAd = null;
         LogUtils.log('Inter ad failed show: $err', tag: 'google ads');

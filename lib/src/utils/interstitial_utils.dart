@@ -1,5 +1,6 @@
 import '../../multi_ads.dart';
 import '../google_ads/google_ads_service/google_interstitial_ad.dart';
+import '../models/ad_error.dart';
 import '../pangle_global/interstitial_ad.dart';
 import '../vungle/interstitial_ad.dart';
 import 'log_utils.dart';
@@ -15,7 +16,7 @@ class InterstitialUtils {
     AdPlatform adPlatform,
     int displayInterval, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(AdError error)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
@@ -56,7 +57,7 @@ class InterstitialUtils {
     AdPlatform adPlatform,
     int displayInterval, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(AdError error)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
@@ -99,7 +100,7 @@ class InterstitialUtils {
     String adUnitId,
     int displayInterval, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(AdError error)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
@@ -109,8 +110,10 @@ class InterstitialUtils {
       onAdLoadedHandle: () {
         GoogleInterstitialAd.show(
           onAdShowedHandle: onAdShowedHandle,
-          onAdFailedToShowHandle: () {
-            onAdFailedToShowHandle?.call();
+          onAdFailedToShowHandle: (code, message) {
+            onAdFailedToShowHandle?.call(
+              AdError(code: code, message: message, platform: 'google'),
+            );
             _scheduleNext(
               adUnitId,
               AdPlatform.google,
@@ -139,8 +142,10 @@ class InterstitialUtils {
           onAdImpressionHandle: onAdImpressionHandle,
         );
       },
-      onAdFailedToLoadHandle: () {
-        onAdFailedToShowHandle?.call();
+      onAdFailedToLoadHandle: (code, message) {
+        onAdFailedToShowHandle?.call(
+          AdError(code: code, message: message, platform: 'google'),
+        );
         _scheduleNext(
           adUnitId,
           AdPlatform.google,
@@ -159,7 +164,7 @@ class InterstitialUtils {
     String adUnitId,
     int displayInterval, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(AdError error)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
   }) {
@@ -169,7 +174,9 @@ class InterstitialUtils {
         _pangleAd?.show();
       },
       onAdLoadFailed: (error) {
-        onAdFailedToShowHandle?.call();
+        onAdFailedToShowHandle?.call(
+          AdError(code: error.code, message: error.message, platform: 'pangle'),
+        );
         _scheduleNext(
           adUnitId,
           AdPlatform.pangleGlobal,
@@ -206,7 +213,7 @@ class InterstitialUtils {
     String adUnitId,
     int displayInterval, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(AdError error)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
@@ -217,7 +224,9 @@ class InterstitialUtils {
         _vungleAd?.show();
       },
       onAdLoadFailed: (error) {
-        onAdFailedToShowHandle?.call();
+        onAdFailedToShowHandle?.call(
+          AdError(code: error.code, message: error.message, platform: 'vungle'),
+        );
         _scheduleNext(
           adUnitId,
           AdPlatform.vungle,
@@ -252,7 +261,9 @@ class InterstitialUtils {
         onAdImpressionHandle?.call();
       },
       onAdFailedToPlay: (error) {
-        onAdFailedToShowHandle?.call();
+        onAdFailedToShowHandle?.call(
+          AdError(code: error.code, message: error.message, platform: 'vungle'),
+        );
         _scheduleNext(
           adUnitId,
           AdPlatform.vungle,
@@ -273,7 +284,7 @@ class InterstitialUtils {
     AdPlatform adPlatform,
     int displayInterval, {
     Function? onAdShowedHandle,
-    Function? onAdFailedToShowHandle,
+    Function(AdError error)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
