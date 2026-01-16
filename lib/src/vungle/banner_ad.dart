@@ -266,6 +266,7 @@ class VungleBannerAdWidget extends StatefulWidget {
   final Function()? onAdLoaded;
   final Function(VungleAdError error)? onAdLoadFailed;
   final Function()? onAdClicked;
+  final Color? backgroundColor;
 
   const VungleBannerAdWidget({
     Key? key,
@@ -274,6 +275,7 @@ class VungleBannerAdWidget extends StatefulWidget {
     this.onAdLoaded,
     this.onAdLoadFailed,
     this.onAdClicked,
+    this.backgroundColor,
   }) : super(key: key);
 
   @override
@@ -343,10 +345,21 @@ class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
 
     _platformView ??= _buildPlatformView();
 
-    return SizedBox(
-      width: size.width,
-      height: _isAdLoaded ? size.height : 0,
-      child: _platformView,
+    // 容器宽度适应屏幕，广告保持固定尺寸并居中
+    // 通过 Opacity 控制可见性
+    return Opacity(
+      opacity: _isAdLoaded ? 1.0 : 0.0,
+      child: Container(
+        width: double.infinity,
+        height: size.height,
+        color: widget.backgroundColor,
+        alignment: Alignment.center,
+        child: SizedBox(
+          width: size.width,
+          height: size.height,
+          child: _platformView,
+        ),
+      ),
     );
   }
 
