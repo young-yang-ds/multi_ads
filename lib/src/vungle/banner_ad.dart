@@ -339,26 +339,29 @@ class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
   @override
   Widget build(BuildContext context) {
     final size = _getAdSize();
-    vungleLog(
-      '[VungleBannerAdWidget] Building - placementId: ${widget.placementId}, size: ${size.width}x${size.height}, loaded: $_isAdLoaded',
-    );
 
     _platformView ??= _buildPlatformView();
 
-    // 容器宽度适应屏幕，广告保持固定尺寸并居中
-    // 通过 Opacity 控制可见性
-    return Opacity(
-      opacity: _isAdLoaded ? 1.0 : 0.0,
-      child: Container(
-        width: double.infinity,
-        height: size.height,
-        color: widget.backgroundColor,
-        alignment: Alignment.center,
+    if (!_isAdLoaded) {
+      return Offstage(
+        offstage: true,
         child: SizedBox(
           width: size.width,
           height: size.height,
           child: _platformView,
         ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      height: size.height,
+      color: widget.backgroundColor,
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: size.width,
+        height: size.height,
+        child: _platformView,
       ),
     );
   }
@@ -369,9 +372,6 @@ class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
       'bannerSize': widget.adSize.index,
       'listenerId': _listenerId,
     };
-    vungleLog(
-      '[VungleBannerAdWidget] Creating platform view with params: $creationParams',
-    );
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       return PlatformViewLink(

@@ -11,6 +11,7 @@ class BannerUtils {
   static Function? _onAdLoadedRefresh;
   static Widget? _cachedWidget;
   static bool _isAdLoaded = false;
+  static Color? _backgroundColor;
 
   static Future<void> load(
     BuildContext context,
@@ -21,6 +22,7 @@ class BannerUtils {
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdLoadedRefresh,
+    Color? backgroundColor,
   }) async {
     _currentAdPlatform = adPlatform;
     _adUnitId = adUnitId;
@@ -29,6 +31,7 @@ class BannerUtils {
     _onAdLoadedRefresh = onAdLoadedRefresh;
     _cachedWidget = null;
     _isAdLoaded = false;
+    _backgroundColor = backgroundColor;
 
     if (adPlatform == AdPlatform.google) {
       await GoogleBannerAd.load(
@@ -49,25 +52,27 @@ class BannerUtils {
         },
       );
     } else if (adPlatform == AdPlatform.vungle) {
-      // Vungle Banner 直接通过 Widget 加载，这里预先标记状态
       _isAdLoaded = true;
       onAdLoadedRefresh?.call();
     }
   }
 
-  static Widget buildWidget() {
+  static Widget buildWidget({Color? backgroundColor}) {
+    final bgColor = backgroundColor ?? _backgroundColor;
+
     if (_currentAdPlatform == AdPlatform.google && !_isAdLoaded) {
       return const SizedBox.shrink();
     }
 
-    if (_cachedWidget != null) {
+    if (_cachedWidget != null && backgroundColor == null) {
       return _cachedWidget!;
     }
 
+    Widget? widget;
     if (_currentAdPlatform == AdPlatform.google) {
-      _cachedWidget = GoogleBannerAd.buildWidget();
+      widget = GoogleBannerAd.buildWidget();
     } else if (_currentAdPlatform == AdPlatform.pangleGlobal) {
-      _cachedWidget = PangleBannerAdWidget(
+      widget = PangleBannerAdWidget(
         slotId: _adUnitId,
         adSize: BannerAdSize.anchoredAdaptive,
         onAdLoaded: () {
@@ -87,9 +92,10 @@ class BannerUtils {
         },
       );
     } else if (_currentAdPlatform == AdPlatform.vungle) {
-      _cachedWidget = VungleBannerAdWidget(
+      widget = VungleBannerAdWidget(
         placementId: _adUnitId,
         adSize: VungleBannerAdSize.banner,
+        backgroundColor: bgColor,
         onAdLoaded: () {
           _isAdLoaded = true;
           _onAdLoadedRefresh?.call();
@@ -110,7 +116,11 @@ class BannerUtils {
       );
     }
 
-    return _cachedWidget ?? const SizedBox.shrink();
+    if (backgroundColor == null) {
+      _cachedWidget = widget;
+    }
+
+    return widget ?? const SizedBox.shrink();
   }
 
   static void dispose() {
@@ -123,5 +133,6 @@ class BannerUtils {
     _onAdLoadedRefresh = null;
     _cachedWidget = null;
     _isAdLoaded = false;
+    _backgroundColor = null;
   }
 }

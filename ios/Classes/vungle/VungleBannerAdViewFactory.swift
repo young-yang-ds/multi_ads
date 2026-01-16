@@ -39,7 +39,7 @@ class VungleBannerAdPlatformView: NSObject, FlutterPlatformView {
         let placementId = args["placementId"] as? String ?? ""
         let bannerSizeIndex = args["bannerSize"] as? Int ?? 0
         
-        // 根据尺寸确定广告大小
+
         let vungleBannerSize: BannerSize
         let adSize: CGSize
         switch bannerSizeIndex {
@@ -60,7 +60,7 @@ class VungleBannerAdPlatformView: NSObject, FlutterPlatformView {
             adSize = CGSize(width: 320, height: 50)
         }
         
-        // 使用固定尺寸创建容器
+
         self.containerView = UIView(frame: CGRect(origin: .zero, size: adSize))
         self.containerView.backgroundColor = .clear
         
@@ -88,7 +88,7 @@ class VungleBannerAdPlatformView: NSObject, FlutterPlatformView {
 
 extension VungleBannerAdPlatformView: VungleBannerDelegate {
     func bannerAdDidLoad(_ banner: VungleBanner) {
-        // 在主线程调用 present
+
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
