@@ -20,6 +20,7 @@ class InterstitialUtils {
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
+    Future<bool?> Function()? onOtherShowHandle,
   }) {
     if (_isLooping) return;
     LogUtils.log(
@@ -38,6 +39,7 @@ class InterstitialUtils {
       onAdDismissHandle: onAdDismissHandle,
       onAdClickedHandle: onAdClickedHandle,
       onAdImpressionHandle: onAdImpressionHandle,
+      onOtherShowHandle: onOtherShowHandle,
     );
   }
 
@@ -52,7 +54,7 @@ class InterstitialUtils {
     }
   }
 
-  static void _loadAndShow(
+  static Future<void> _loadAndShow(
     String adUnitId,
     AdPlatform adPlatform,
     int displayInterval, {
@@ -61,8 +63,28 @@ class InterstitialUtils {
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
-  }) {
+    Future<bool?> Function()? onOtherShowHandle,
+  }) async {
     if (!_isLooping) return;
+
+    // Check if should skip this ad load
+    if (onOtherShowHandle != null) {
+      final shouldSkip = await onOtherShowHandle();
+      if (shouldSkip == true) {
+        _scheduleNext(
+          adUnitId,
+          adPlatform,
+          displayInterval,
+          onAdShowedHandle: onAdShowedHandle,
+          onAdFailedToShowHandle: onAdFailedToShowHandle,
+          onAdDismissHandle: onAdDismissHandle,
+          onAdClickedHandle: onAdClickedHandle,
+          onAdImpressionHandle: onAdImpressionHandle,
+          onOtherShowHandle: onOtherShowHandle,
+        );
+        return;
+      }
+    }
 
     if (adPlatform == AdPlatform.google) {
       _loadAndShowGoogle(
@@ -73,6 +95,7 @@ class InterstitialUtils {
         onAdDismissHandle: onAdDismissHandle,
         onAdClickedHandle: onAdClickedHandle,
         onAdImpressionHandle: onAdImpressionHandle,
+        onOtherShowHandle: onOtherShowHandle,
       );
     } else if (adPlatform == AdPlatform.pangleGlobal) {
       _loadAndShowPangle(
@@ -82,6 +105,7 @@ class InterstitialUtils {
         onAdFailedToShowHandle: onAdFailedToShowHandle,
         onAdDismissHandle: onAdDismissHandle,
         onAdClickedHandle: onAdClickedHandle,
+        onOtherShowHandle: onOtherShowHandle,
       );
     } else if (adPlatform == AdPlatform.vungle) {
       _loadAndShowVungle(
@@ -92,6 +116,7 @@ class InterstitialUtils {
         onAdDismissHandle: onAdDismissHandle,
         onAdClickedHandle: onAdClickedHandle,
         onAdImpressionHandle: onAdImpressionHandle,
+        onOtherShowHandle: onOtherShowHandle,
       );
     }
   }
@@ -104,6 +129,7 @@ class InterstitialUtils {
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
+    Future<bool?> Function()? onOtherShowHandle,
   }) {
     GoogleInterstitialAd.load(
       adUnitId,
@@ -155,6 +181,7 @@ class InterstitialUtils {
           onAdDismissHandle: onAdDismissHandle,
           onAdClickedHandle: onAdClickedHandle,
           onAdImpressionHandle: onAdImpressionHandle,
+          onOtherShowHandle: onOtherShowHandle,
         );
       },
     );
@@ -167,6 +194,7 @@ class InterstitialUtils {
     Function(AdError error)? onAdFailedToShowHandle,
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
+    Future<bool?> Function()? onOtherShowHandle,
   }) {
     _pangleAd = PangleInterstitialAd(
       slotId: adUnitId,
@@ -185,6 +213,7 @@ class InterstitialUtils {
           onAdFailedToShowHandle: onAdFailedToShowHandle,
           onAdDismissHandle: onAdDismissHandle,
           onAdClickedHandle: onAdClickedHandle,
+          onOtherShowHandle: onOtherShowHandle,
         );
       },
       onAdShowed: () {
@@ -200,6 +229,7 @@ class InterstitialUtils {
           onAdFailedToShowHandle: onAdFailedToShowHandle,
           onAdDismissHandle: onAdDismissHandle,
           onAdClickedHandle: onAdClickedHandle,
+          onOtherShowHandle: onOtherShowHandle,
         );
       },
       onAdClicked: () {
@@ -217,6 +247,7 @@ class InterstitialUtils {
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
+    Future<bool?> Function()? onOtherShowHandle,
   }) {
     _vungleAd = VungleInterstitialAd(
       placementId: adUnitId,
@@ -236,6 +267,7 @@ class InterstitialUtils {
           onAdDismissHandle: onAdDismissHandle,
           onAdClickedHandle: onAdClickedHandle,
           onAdImpressionHandle: onAdImpressionHandle,
+          onOtherShowHandle: onOtherShowHandle,
         );
       },
       onAdShowed: () {
@@ -252,6 +284,7 @@ class InterstitialUtils {
           onAdDismissHandle: onAdDismissHandle,
           onAdClickedHandle: onAdClickedHandle,
           onAdImpressionHandle: onAdImpressionHandle,
+          onOtherShowHandle: onOtherShowHandle,
         );
       },
       onAdClicked: () {
@@ -273,6 +306,7 @@ class InterstitialUtils {
           onAdDismissHandle: onAdDismissHandle,
           onAdClickedHandle: onAdClickedHandle,
           onAdImpressionHandle: onAdImpressionHandle,
+          onOtherShowHandle: onOtherShowHandle,
         );
       },
     );
@@ -288,6 +322,7 @@ class InterstitialUtils {
     Function? onAdDismissHandle,
     Function? onAdClickedHandle,
     Function? onAdImpressionHandle,
+    Future<bool?> Function()? onOtherShowHandle,
   }) {
     if (!_isLooping) return;
     Future.delayed(Duration(seconds: displayInterval), () {
@@ -300,6 +335,7 @@ class InterstitialUtils {
         onAdDismissHandle: onAdDismissHandle,
         onAdClickedHandle: onAdClickedHandle,
         onAdImpressionHandle: onAdImpressionHandle,
+        onOtherShowHandle: onOtherShowHandle,
       );
     });
   }
