@@ -54,6 +54,109 @@ class InterstitialUtils {
     }
   }
 
+  /// Manually trigger interstitial ad load and show (one-time)
+  static Future<void> showOnce(
+    String adUnitId,
+    AdPlatform adPlatform, {
+    Function? onAdShowedHandle,
+    Function(AdError error)? onAdFailedToShowHandle,
+    Function? onAdDismissHandle,
+    Function? onAdClickedHandle,
+    Function? onAdImpressionHandle,
+  }) async {
+    if (adPlatform == AdPlatform.google) {
+      GoogleInterstitialAd.load(
+        adUnitId,
+        onAdLoadedHandle: () {
+          GoogleInterstitialAd.show(
+            onAdShowedHandle: onAdShowedHandle,
+            onAdFailedToShowHandle: (code, message) {
+              onAdFailedToShowHandle?.call(
+                AdError(code: code, message: message, platform: 'google'),
+              );
+            },
+            onAdDismissHandle: () {
+              onAdDismissHandle?.call();
+            },
+            onAdClickedHandle: onAdClickedHandle,
+            onAdImpressionHandle: onAdImpressionHandle,
+          );
+        },
+        onAdFailedToLoadHandle: (code, message) {
+          onAdFailedToShowHandle?.call(
+            AdError(code: code, message: message, platform: 'google'),
+          );
+        },
+      );
+    } else if (adPlatform == AdPlatform.pangleGlobal) {
+      late PangleInterstitialAd pangleAd;
+      pangleAd = PangleInterstitialAd(
+        slotId: adUnitId,
+        onAdLoaded: () {
+          pangleAd.show();
+        },
+        onAdLoadFailed: (error) {
+          onAdFailedToShowHandle?.call(
+            AdError(
+              code: error.code,
+              message: error.message,
+              platform: 'pangle',
+            ),
+          );
+        },
+        onAdShowed: () {
+          onAdShowedHandle?.call();
+        },
+        onAdDismissed: () {
+          onAdDismissHandle?.call();
+        },
+        onAdClicked: () {
+          onAdClickedHandle?.call();
+        },
+      );
+      pangleAd.load();
+    } else if (adPlatform == AdPlatform.vungle) {
+      late VungleInterstitialAd vungleAd;
+      vungleAd = VungleInterstitialAd(
+        placementId: adUnitId,
+        onAdLoaded: () {
+          vungleAd.show();
+        },
+        onAdLoadFailed: (error) {
+          onAdFailedToShowHandle?.call(
+            AdError(
+              code: error.code,
+              message: error.message,
+              platform: 'vungle',
+            ),
+          );
+        },
+        onAdShowed: () {
+          onAdShowedHandle?.call();
+        },
+        onAdDismissed: () {
+          onAdDismissHandle?.call();
+        },
+        onAdClicked: () {
+          onAdClickedHandle?.call();
+        },
+        onAdImpression: () {
+          onAdImpressionHandle?.call();
+        },
+        onAdFailedToPlay: (error) {
+          onAdFailedToShowHandle?.call(
+            AdError(
+              code: error.code,
+              message: error.message,
+              platform: 'vungle',
+            ),
+          );
+        },
+      );
+      vungleAd.load();
+    }
+  }
+
   static Future<void> _loadAndShow(
     String adUnitId,
     AdPlatform adPlatform,
