@@ -1,6 +1,6 @@
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-import '../../utils/log_utils.dart';
+import '../../../utils/log_utils.dart';
 
 class GoogleInterstitialAd {
   static InterstitialAd? _interstitialAd;

@@ -1,8 +1,8 @@
 import '../../multi_ads.dart';
-import '../google_ads/google_ads_service/google_interstitial_ad.dart';
+import '../services/google_ads/google_ads_service/google_interstitial_ad.dart';
 import '../models/ad_error.dart';
-import '../pangle_global/interstitial_ad.dart';
-import '../vungle/interstitial_ad.dart';
+import '../services/pangle_global/interstitial_ad.dart';
+import '../services/vungle/interstitial_ad.dart';
 import 'log_utils.dart';
 
 class InterstitialUtils {
