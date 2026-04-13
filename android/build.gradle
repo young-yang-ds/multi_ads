@@ -56,6 +56,9 @@ android {
         
         // Vungle Ads SDK
         implementation("com.vungle:vungle-ads:7.6.3")
+
+        // Google Mobile Ads SDK (for NativeAdViewBuilder)
+        compileOnly("com.google.android.gms:play-services-ads:24.4.0")
     }
 
     testOptions {

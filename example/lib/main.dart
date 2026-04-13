@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:multi_ads/multi_ads.dart';
 import 'package:multi_ads_example/google_service.dart';
 import 'package:multi_ads_example/pages/common_pages/common_page.dart';
 import 'package:multi_ads_example/pages/google_ads_page.dart';
+import 'package:multi_ads_example/pages/google_native_ads_page.dart';
 import 'package:multi_ads_example/pages/pga_page.dart';
 import 'dart:developer' as dev;
 
@@ -13,11 +15,11 @@ demoLog(dynamic message, {String tag = 'demo-log'}) {
 
 void main() {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  // FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  GoogleAdsInitialize.init().then((value) {
-    dev.log('${value.adapterStatuses}');
-  });
+  // GoogleAdsInitialize.init().then((value) {
+  //   dev.log('${value.adapterStatuses}');
+  // });
 
   runApp(const MyApp());
 }
@@ -47,16 +49,24 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
 
-    showGoogleOpen();
+    FlutterNativeSplash.remove();
+    // SchedulerBinding.instance.addPostFrameCallback((_) async {
+    //   Navigator.push(
+    //     context,
+    //     MaterialPageRoute(builder: (context) => const CommonPage()),
+    //   );
+    // });
+
+    // showGoogleOpen();
   }
 
-  void showGoogleOpen() {
-    Future.delayed(Duration(seconds: 3), () {
-      FlutterNativeSplash.remove();
-    });
-
-    GoogleService().openShow();
-  }
+  // void showGoogleOpen() {
+  //   Future.delayed(Duration(seconds: 3), () {
+  //     FlutterNativeSplash.remove();
+  //   });
+  //
+  //   GoogleService().openShow();
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +105,18 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
               child: const Text('Common'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const GoogleNativeAdsPage(),
+                  ),
+                );
+              },
+              child: const Text('Google Native Ads'),
             ),
             const SizedBox(height: 20),
           ],

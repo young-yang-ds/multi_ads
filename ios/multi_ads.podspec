@@ -17,6 +17,7 @@ A new Flutter project.
   s.dependency 'Flutter'
   s.dependency 'Ads-Global', '7.8.0.3'
   s.dependency 'VungleAds', '~> 7.0'
+  s.dependency 'Google-Mobile-Ads-SDK'
   s.platform = :ios, '13.0'
   s.static_framework = true
 

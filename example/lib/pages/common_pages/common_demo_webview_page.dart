@@ -37,9 +37,9 @@ class _DemoWebviewPageState extends State<CommonDemoWebviewPage> {
     super.initState();
 
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      CommonService().init(context, () {
-        if (mounted) setState(() {});
-      });
+      // CommonService().init(context, () {
+      //   if (mounted) setState(() {});
+      // });
     });
   }
 
@@ -92,6 +92,7 @@ class _DemoWebviewPageState extends State<CommonDemoWebviewPage> {
               },
             ),
           ),
+
           /// Banner Widget
           BannerUtils.buildWidget(),
         ],

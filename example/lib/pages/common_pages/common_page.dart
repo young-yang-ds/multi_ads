@@ -48,6 +48,7 @@ class _CommonPageState extends State<CommonPage> {
                       OpenUtils.loadAndShow(
                         CommonService.openId,
                         CommonService.adPlatform,
+                        onAdFailedToShowHandle: (error) {},
                       );
                     },
                     child: const Text('Load Open Ad'),

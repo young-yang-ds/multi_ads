@@ -25,9 +25,10 @@ PODS:
   - GoogleUserMessagingPlatform (3.1.0)
   - integration_test (0.0.1):
     - Flutter
-  - multi_ads (0.0.1):
+  - multi_ads (0.2.0):
     - Ads-Global (= 7.8.0.3)
     - Flutter
+    - Google-Mobile-Ads-SDK
     - VungleAds (~> 7.0)
   - OrderedSet (6.0.3)
   - VungleAds (7.6.3)
@@ -77,7 +78,7 @@ SPEC CHECKSUMS:
   google_mobile_ads: 535223588a6791b7a3cc3513a1bc7b89d12f3e62
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  multi_ads: 966a121a2540fe33f108bc4a9100f1632c7d8c27
+  multi_ads: 954322b3ec1b90d7d985851ebc388e75c18c7ec7
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
   VungleAds: 40e87d1eaba17ac818b0f94461fd8ed21ad768dc
   webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
