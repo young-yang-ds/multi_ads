@@ -31,46 +31,55 @@ class VungleNativeAd {
     _eventListenerSetup = true;
 
     _eventChannel.receiveBroadcastStream().listen((event) {
-      final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
-      final String eventType = data['event'] as String;
-      final String eventPlacementId = data['placementId'] as String? ?? '';
+      try {
+        final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
+        final String eventType = data['event'] as String? ?? '';
+        final String eventPlacementId =
+            data['placementId'] as String? ?? '';
 
-      if (eventPlacementId != _placementId) return;
+        if (eventPlacementId != _placementId) return;
 
-      vungleLog('[VungleNativeAd] Event received: $eventType');
-      LogUtils.log('Event received: $eventType', tag: 'VungleNativeAd');
+        vungleLog('[VungleNativeAd] Event received: $eventType');
+        LogUtils.log('Event received: $eventType', tag: 'VungleNativeAd');
 
-      switch (eventType) {
-        case 'onAdLoaded':
-          _isLoading = false;
-          _isLoaded = true;
-          vungleLog('[VungleNativeAd] Ad loaded');
-          LogUtils.log('Ad loaded', tag: 'VungleNativeAd');
-          _onAdLoaded?.call();
-          break;
-        case 'onAdLoadFailed':
-          _isLoading = false;
-          _isLoaded = false;
-          final error = VungleAdError.fromJson(
-            Map<String, dynamic>.from(data['error'] ?? {}),
-          );
-          vungleLog(
-            '[VungleNativeAd] Ad load failed: ${error.code} - ${error.message}',
-          );
-          LogUtils.log('Ad load failed: ${error.code} - ${error.message}', tag: 'VungleNativeAd');
-          _onAdLoadFailed?.call(error);
-          break;
-        case 'onAdClicked':
-          vungleLog('[VungleNativeAd] Ad clicked');
-          LogUtils.log('Ad clicked', tag: 'VungleNativeAd');
-          _onAdClicked?.call();
-          break;
-        case 'onAdImpression':
-          vungleLog('[VungleNativeAd] Ad impression');
-          LogUtils.log('Ad impression', tag: 'VungleNativeAd');
-          _onAdImpression?.call();
-          break;
+        switch (eventType) {
+          case 'onAdLoaded':
+            _isLoading = false;
+            _isLoaded = true;
+            vungleLog('[VungleNativeAd] Ad loaded');
+            LogUtils.log('Ad loaded', tag: 'VungleNativeAd');
+            _onAdLoaded?.call();
+            break;
+          case 'onAdLoadFailed':
+            _isLoading = false;
+            _isLoaded = false;
+            final error = VungleAdError.fromJson(
+              Map<String, dynamic>.from(data['error'] ?? {}),
+            );
+            vungleLog(
+              '[VungleNativeAd] Ad load failed: ${error.code} - ${error.message}',
+            );
+            LogUtils.log(
+                'Ad load failed: ${error.code} - ${error.message}',
+                tag: 'VungleNativeAd');
+            _onAdLoadFailed?.call(error);
+            break;
+          case 'onAdClicked':
+            vungleLog('[VungleNativeAd] Ad clicked');
+            LogUtils.log('Ad clicked', tag: 'VungleNativeAd');
+            _onAdClicked?.call();
+            break;
+          case 'onAdImpression':
+            vungleLog('[VungleNativeAd] Ad impression');
+            LogUtils.log('Ad impression', tag: 'VungleNativeAd');
+            _onAdImpression?.call();
+            break;
+        }
+      } catch (e) {
+        LogUtils.log('Event handling error: $e', tag: 'VungleNativeAd');
       }
+    }, onError: (error) {
+      LogUtils.log('Event stream error: $error', tag: 'VungleNativeAd');
     });
   }
 

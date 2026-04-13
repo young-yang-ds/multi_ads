@@ -32,40 +32,47 @@ class PangleNativeAd {
     _eventListenerSetup = true;
 
     _eventChannel.receiveBroadcastStream().listen((event) {
-      final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
-      final String eventType = data['event'] as String;
-      pangleLog('[PangleNativeAd] Event received: $eventType');
-      LogUtils.log('Event received: $eventType', tag: 'PangleNativeAd');
+      try {
+        final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
+        final String eventType = data['event'] as String? ?? '';
+        pangleLog('[PangleNativeAd] Event received: $eventType');
+        LogUtils.log('Event received: $eventType', tag: 'PangleNativeAd');
 
-      switch (eventType) {
-        case 'onAdLoaded':
-          _isLoading = false;
-          _isLoaded = true;
-          pangleLog('[PangleNativeAd] Ad loaded');
-          LogUtils.log('Ad loaded', tag: 'PangleNativeAd');
-          _onAdLoaded?.call();
-          break;
-        case 'onAdLoadFailed':
-          _isLoading = false;
-          _isLoaded = false;
-          final error =
-              PangleAdError.fromJson(Map<String, dynamic>.from(data['error']));
-          pangleLog(
-              '[PangleNativeAd] Ad load failed: ${error.code} - ${error.message}');
-          LogUtils.log('Ad load failed: ${error.code} - ${error.message}', tag: 'PangleNativeAd');
-          _onAdLoadFailed?.call(error);
-          break;
-        case 'onAdClicked':
-          pangleLog('[PangleNativeAd] Ad clicked');
-          LogUtils.log('Ad clicked', tag: 'PangleNativeAd');
-          _onAdClicked?.call();
-          break;
-        case 'onAdShowed':
-          pangleLog('[PangleNativeAd] Ad showed');
-          LogUtils.log('Ad showed', tag: 'PangleNativeAd');
-          _onAdShowed?.call();
-          break;
+        switch (eventType) {
+          case 'onAdLoaded':
+            _isLoading = false;
+            _isLoaded = true;
+            pangleLog('[PangleNativeAd] Ad loaded');
+            LogUtils.log('Ad loaded', tag: 'PangleNativeAd');
+            _onAdLoaded?.call();
+            break;
+          case 'onAdLoadFailed':
+            _isLoading = false;
+            _isLoaded = false;
+            final error = PangleAdError.fromJson(
+                Map<String, dynamic>.from(data['error'] ?? {}));
+            pangleLog(
+                '[PangleNativeAd] Ad load failed: ${error.code} - ${error.message}');
+            LogUtils.log('Ad load failed: ${error.code} - ${error.message}',
+                tag: 'PangleNativeAd');
+            _onAdLoadFailed?.call(error);
+            break;
+          case 'onAdClicked':
+            pangleLog('[PangleNativeAd] Ad clicked');
+            LogUtils.log('Ad clicked', tag: 'PangleNativeAd');
+            _onAdClicked?.call();
+            break;
+          case 'onAdShowed':
+            pangleLog('[PangleNativeAd] Ad showed');
+            LogUtils.log('Ad showed', tag: 'PangleNativeAd');
+            _onAdShowed?.call();
+            break;
+        }
+      } catch (e) {
+        LogUtils.log('Event handling error: $e', tag: 'PangleNativeAd');
       }
+    }, onError: (error) {
+      LogUtils.log('Event stream error: $error', tag: 'PangleNativeAd');
     });
   }
 
