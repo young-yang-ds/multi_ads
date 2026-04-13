@@ -7,3 +7,4 @@ export 'models/vungle_ad_error.dart';
 export 'interstitial_ad.dart';
 export 'app_open_ad.dart';
 export 'banner_ad.dart';
+export 'native_ad.dart';

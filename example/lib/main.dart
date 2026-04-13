@@ -6,6 +6,8 @@ import 'package:multi_ads_example/google_service.dart';
 import 'package:multi_ads_example/pages/common_pages/common_page.dart';
 import 'package:multi_ads_example/pages/google_ads_page.dart';
 import 'package:multi_ads_example/pages/google_native_ads_page.dart';
+import 'package:multi_ads_example/pages/pangle_native_ads_page.dart';
+import 'package:multi_ads_example/pages/vungle_native_ads_page.dart';
 import 'package:multi_ads_example/pages/pga_page.dart';
 import 'dart:developer' as dev;
 
@@ -117,6 +119,30 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
               child: const Text('Google Native Ads'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PangleNativeAdsPage(),
+                  ),
+                );
+              },
+              child: const Text('Pangle Native Ads'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const VungleNativeAdsPage(),
+                  ),
+                );
+              },
+              child: const Text('Vungle Native Ads'),
             ),
             const SizedBox(height: 20),
           ],

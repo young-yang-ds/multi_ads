@@ -56,6 +56,48 @@ class NativeUtils {
           onAdClickedHandle?.call();
         },
       );
+    } else if (adPlatform == AdPlatform.pangleGlobal) {
+      PangleNativeAd.load(
+        adUnitId,
+        style: style,
+        onAdLoaded: () {
+          _isAdLoaded = true;
+          onAdLoadedRefresh?.call();
+        },
+        onAdLoadFailed: (error) {
+          _isAdLoaded = false;
+          onAdFailedToLoadHandle?.call(
+            AdError(
+                code: error.code,
+                message: error.message,
+                platform: 'pangleGlobal'),
+          );
+        },
+        onAdClicked: () {
+          onAdClickedHandle?.call();
+        },
+      );
+    } else if (adPlatform == AdPlatform.vungle) {
+      VungleNativeAd.load(
+        adUnitId,
+        style: style,
+        onAdLoaded: () {
+          _isAdLoaded = true;
+          onAdLoadedRefresh?.call();
+        },
+        onAdLoadFailed: (error) {
+          _isAdLoaded = false;
+          onAdFailedToLoadHandle?.call(
+            AdError(
+                code: error.code,
+                message: error.message,
+                platform: 'vungle'),
+          );
+        },
+        onAdClicked: () {
+          onAdClickedHandle?.call();
+        },
+      );
     }
   }
 
@@ -69,6 +111,10 @@ class NativeUtils {
 
     if (_currentAdPlatform == AdPlatform.google) {
       return GoogleNativeAd.buildWidget();
+    } else if (_currentAdPlatform == AdPlatform.pangleGlobal) {
+      return PangleNativeAd.buildWidget();
+    } else if (_currentAdPlatform == AdPlatform.vungle) {
+      return VungleNativeAd.buildWidget();
     }
 
     return const SizedBox.shrink();
@@ -78,6 +124,10 @@ class NativeUtils {
   static void dispose() {
     if (_currentAdPlatform == AdPlatform.google) {
       GoogleNativeAd.dispose();
+    } else if (_currentAdPlatform == AdPlatform.pangleGlobal) {
+      PangleNativeAd.dispose();
+    } else if (_currentAdPlatform == AdPlatform.vungle) {
+      VungleNativeAd.dispose();
     }
     _isAdLoaded = false;
   }

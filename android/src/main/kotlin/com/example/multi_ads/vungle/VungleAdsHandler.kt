@@ -22,16 +22,19 @@ class VungleAdsHandler(
     private val channel: MethodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "multi_ads/vungle")
     private val interstitialEventChannel: EventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "multi_ads/vungle/interstitial_events")
     private val appOpenEventChannel: EventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "multi_ads/vungle/appopen_events")
+    private val nativeEventChannel: EventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "multi_ads/vungle/native_events")
 
     private val context: Context = flutterPluginBinding.applicationContext
     private var activity: Activity? = null
 
     private var interstitialEventSink: EventChannel.EventSink? = null
     private var appOpenEventSink: EventChannel.EventSink? = null
+    private var nativeEventSink: EventChannel.EventSink? = null
 
     private val interstitialAdManagers = mutableMapOf<String, VungleInterstitialAdManager>()
     private val appOpenAdManagers = mutableMapOf<String, VungleAppOpenAdManager>()
     private val bannerAdManagers = mutableMapOf<String, VungleBannerAdManager>()
+    private val nativeAdManagers = mutableMapOf<String, VungleNativeAdManager>()
 
     init {
         channel.setMethodCallHandler { call, result ->
@@ -58,6 +61,16 @@ class VungleAdsHandler(
             }
         })
 
+        nativeEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                nativeEventSink = events
+            }
+
+            override fun onCancel(arguments: Any?) {
+                nativeEventSink = null
+            }
+        })
+
         // Register platform views
         flutterPluginBinding.platformViewRegistry.registerViewFactory(
             "multi_ads/vungle/banner",
@@ -68,6 +81,11 @@ class VungleAdsHandler(
             "multi_ads/vungle/banner_container",
             VungleBannerAdContainerFactory(this)
         )
+
+        flutterPluginBinding.platformViewRegistry.registerViewFactory(
+            "multi_ads/vungle/native",
+            VungleNativeAdViewFactory(this)
+        )
     }
 
     fun setActivity(activity: Activity?) {
@@ -76,6 +94,10 @@ class VungleAdsHandler(
 
     fun getBannerView(listenerId: String): View? {
         return bannerAdManagers[listenerId]?.getBannerView()
+    }
+
+    fun getNativeAd(placementId: String): com.vungle.ads.NativeAd? {
+        return nativeAdManagers[placementId]?.nativeAd
     }
 
     private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -121,6 +143,16 @@ class VungleAdsHandler(
             "disposeBannerAd" -> {
                 val listenerId = call.argument<String>("listenerId") ?: ""
                 disposeBannerAd(listenerId, result)
+            }
+            "loadNativeAd" -> {
+                val placementId = call.argument<String>("placementId") ?: ""
+                @Suppress("UNCHECKED_CAST")
+                val style = call.argument<Map<String, Any>>("style")
+                loadNativeAd(placementId, style, result)
+            }
+            "disposeNativeAd" -> {
+                val placementId = call.argument<String>("placementId") ?: ""
+                disposeNativeAd(placementId, result)
             }
             else -> {
                 result.notImplemented()
@@ -220,10 +252,25 @@ class VungleAdsHandler(
         result.success(null)
     }
 
+    private fun loadNativeAd(placementId: String, style: Map<String, Any>?, result: MethodChannel.Result) {
+        nativeAdManagers[placementId]?.dispose()
+        val manager = VungleNativeAdManager(context, activity, placementId, style, nativeEventSink)
+        nativeAdManagers[placementId] = manager
+        manager.loadAd()
+        result.success(true)
+    }
+
+    private fun disposeNativeAd(placementId: String, result: MethodChannel.Result) {
+        nativeAdManagers[placementId]?.dispose()
+        nativeAdManagers.remove(placementId)
+        result.success(null)
+    }
+
     fun dispose() {
         channel.setMethodCallHandler(null)
         interstitialEventChannel.setStreamHandler(null)
         appOpenEventChannel.setStreamHandler(null)
+        nativeEventChannel.setStreamHandler(null)
         
         // Dispose all ad managers
         interstitialAdManagers.values.forEach { it.dispose() }
@@ -234,5 +281,8 @@ class VungleAdsHandler(
         
         bannerAdManagers.values.forEach { it.dispose() }
         bannerAdManagers.clear()
+        
+        nativeAdManagers.values.forEach { it.dispose() }
+        nativeAdManagers.clear()
     }
 }

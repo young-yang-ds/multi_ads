@@ -54,6 +54,9 @@ class NativeAdStyle {
   /// Height of the left image, defaults to [height] if not set
   final double? imageHeight;
 
+  /// Corner radius of the image (default: 0, no rounding)
+  final double imageCornerRadius;
+
   /// Title font size in sp/pt (default: 14)
   final double titleFontSize;
 
@@ -126,10 +129,14 @@ class NativeAdStyle {
   /// Whether CTA text is bold (default: true)
   final bool ctaBold;
 
+  /// CTA button horizontal padding (default: 8)
+  final double ctaPaddingHorizontal;
+
   const NativeAdStyle({
     this.height = 80,
     this.imageWidth = 120,
     this.imageHeight,
+    this.imageCornerRadius = 0,
     this.titleFontSize = 14,
     this.titleColor = const Color(0xFF202124),
     this.titleBold = true,
@@ -154,6 +161,7 @@ class NativeAdStyle {
     this.ctaBackgroundColor = const Color(0xFF4285F4),
     this.ctaCornerRadius = 4,
     this.ctaBold = true,
+    this.ctaPaddingHorizontal = 8,
   });
 
   /// Convert to a Map for passing as customOptions to native side
@@ -162,6 +170,7 @@ class NativeAdStyle {
       'height': height,
       'imageWidth': imageWidth,
       'imageHeight': imageHeight ?? height,
+      'imageCornerRadius': imageCornerRadius,
       'titleFontSize': titleFontSize,
       'titleColor': _colorToHex(titleColor),
       'titleBold': titleBold,
@@ -186,6 +195,7 @@ class NativeAdStyle {
       'ctaBackgroundColor': _colorToHex(ctaBackgroundColor),
       'ctaCornerRadius': ctaCornerRadius,
       'ctaBold': ctaBold,
+      'ctaPaddingHorizontal': ctaPaddingHorizontal,
     };
   }
 

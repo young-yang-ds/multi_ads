@@ -1,76 +1,106 @@
-package com.example.multi_ads
+package com.example.multi_ads.vungle
 
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Typeface
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewOutlineProvider
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.google.android.gms.ads.nativead.NativeAd
-import com.google.android.gms.ads.nativead.NativeAdView
+import io.flutter.plugin.common.StandardMessageCodec
+import io.flutter.plugin.platform.PlatformView
+import io.flutter.plugin.platform.PlatformViewFactory
+import com.vungle.ads.NativeAd
 
-/// Builds a styled NativeAdView from a NativeAd and customOptions map.
-///
-/// This class reads styling parameters from the customOptions map passed by
-/// the Dart side via [NativeAdStyle.toMap()], so all styling is controlled from Dart.
-///
-/// Usage in your app's NativeAdFactory:
-/// ```kotlin
-/// class MyFactory(ctx: Context) : GoogleMobileAdsPlugin.NativeAdFactory {
-///     private val builder = NativeAdViewBuilder(ctx)
-///     override fun createNativeAd(nativeAd: NativeAd, customOptions: MutableMap<String, Any>?) =
-///         builder.build(nativeAd, customOptions)
-/// }
-/// ```
-class NativeAdViewBuilder(private val context: Context) {
+class VungleNativeAdViewFactory(
+    private val handler: VungleAdsHandler
+) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
-    fun build(nativeAd: NativeAd, customOptions: MutableMap<String, Any>?): NativeAdView {
+    override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
+        val creationParams = args as? Map<String, Any>
+        return VungleNativeAdPlatformView(context, creationParams, handler)
+    }
+}
+
+class VungleNativeAdPlatformView(
+    private val context: Context,
+    creationParams: Map<String, Any>?,
+    handler: VungleAdsHandler
+) : PlatformView {
+
+    companion object {
+        const val TAG = "VungleNativeAdView"
+    }
+
+    private val container: FrameLayout = FrameLayout(context)
+
+    init {
+        val placementId = creationParams?.get("placementId") as? String ?: ""
+        val style = creationParams?.get("style") as? Map<String, Any> ?: emptyMap()
+        val nativeAd = handler.getNativeAd(placementId)
+
+        if (nativeAd != null) {
+            buildNativeAdView(nativeAd, style)
+        } else {
+            Log.w(TAG, "Native ad not loaded for placement: $placementId")
+        }
+    }
+
+    private fun buildNativeAdView(nativeAd: NativeAd, style: Map<String, Any>) {
         val density = context.resources.displayMetrics.density
-        val options = customOptions ?: mutableMapOf()
 
-        // Read style options from Dart NativeAdStyle
-        val height = (options["height"] as? Double)?.toInt() ?: 80
-        val imageWidth = (options["imageWidth"] as? Double)?.toInt() ?: 120
-        val imageHeight = (options["imageHeight"] as? Double)?.toInt() ?: height
-        val titleFontSize = (options["titleFontSize"] as? Double)?.toFloat() ?: 14f
-        val titleColorStr = options["titleColor"] as? String ?: "#FF202124"
-        val titleBold = options["titleBold"] as? Boolean ?: true
-        val titleMaxLines = (options["titleMaxLines"] as? Int) ?: 2
-        val titleFontFamily = options["titleFontFamily"] as? String
-        val bodyFontSize = (options["bodyFontSize"] as? Double)?.toFloat() ?: 10f
-        val bodyColorStr = options["bodyColor"] as? String ?: "#FF999999"
-        val bodyBold = options["bodyBold"] as? Boolean ?: false
-        val bodyFontFamily = options["bodyFontFamily"] as? String
-        val bgColorStr = options["backgroundColor"] as? String ?: "#FFFFFFFF"
-        val cornerRadius = (options["cornerRadius"] as? Double)?.toFloat() ?: 10f
-        val imageCornerRadius = (options["imageCornerRadius"] as? Double)?.toFloat() ?: 0f
-        val textPadH = (options["textPaddingHorizontal"] as? Double)?.toInt() ?: 12
-        val textPadV = (options["textPaddingVertical"] as? Double)?.toInt() ?: 8
-        val textAlignment = options["textAlignment"] as? String ?: "center"
-        val showStarRating = options["showStarRating"] as? Boolean ?: true
-        val starSize = (options["starSize"] as? Double)?.toFloat() ?: 12f
-        val starActiveColorStr = options["starActiveColor"] as? String ?: "#FFFFC107"
-        val starInactiveColorStr = options["starInactiveColor"] as? String ?: "#FFCCCCCC"
-        val showCallToAction = options["showCallToAction"] as? Boolean ?: true
-        val ctaFontSize = (options["ctaFontSize"] as? Double)?.toFloat() ?: 12f
-        val ctaTextColorStr = options["ctaTextColor"] as? String ?: "#FFFFFFFF"
-        val ctaBgColorStr = options["ctaBackgroundColor"] as? String ?: "#FF4285F4"
-        val ctaCornerRadius = (options["ctaCornerRadius"] as? Double)?.toFloat() ?: 4f
-        val ctaBold = options["ctaBold"] as? Boolean ?: true
-        val ctaPadH = (options["ctaPaddingHorizontal"] as? Double)?.toFloat() ?: 8f
+        // Read style options
+        val height = (style["height"] as? Double)?.toInt() ?: 80
+        val imageWidth = (style["imageWidth"] as? Double)?.toInt() ?: 120
+        val imageHeight = (style["imageHeight"] as? Double)?.toInt() ?: height
+        val titleFontSize = (style["titleFontSize"] as? Double)?.toFloat() ?: 14f
+        val titleColorStr = style["titleColor"] as? String ?: "#FF202124"
+        val titleBold = style["titleBold"] as? Boolean ?: true
+        val titleMaxLines = (style["titleMaxLines"] as? Int) ?: 2
+        val titleFontFamily = style["titleFontFamily"] as? String
+        val bodyFontSize = (style["bodyFontSize"] as? Double)?.toFloat() ?: 10f
+        val bodyColorStr = style["bodyColor"] as? String ?: "#FF999999"
+        val bodyBold = style["bodyBold"] as? Boolean ?: false
+        val bodyFontFamily = style["bodyFontFamily"] as? String
+        val bgColorStr = style["backgroundColor"] as? String ?: "#FFFFFFFF"
+        val cornerRadius = (style["cornerRadius"] as? Double)?.toFloat() ?: 10f
+        val imageCornerRadius = (style["imageCornerRadius"] as? Double)?.toFloat() ?: 0f
+        val textPadH = (style["textPaddingHorizontal"] as? Double)?.toInt() ?: 12
+        val textPadV = (style["textPaddingVertical"] as? Double)?.toInt() ?: 8
+        val textAlignment = style["textAlignment"] as? String ?: "center"
+        val showStarRating = style["showStarRating"] as? Boolean ?: true
+        val starSize = (style["starSize"] as? Double)?.toFloat() ?: 12f
+        val starActiveColorStr = style["starActiveColor"] as? String ?: "#FFFFC107"
+        val starInactiveColorStr = style["starInactiveColor"] as? String ?: "#FFCCCCCC"
+        val showCallToAction = style["showCallToAction"] as? Boolean ?: true
+        val ctaFontSize = (style["ctaFontSize"] as? Double)?.toFloat() ?: 12f
+        val ctaTextColorStr = style["ctaTextColor"] as? String ?: "#FFFFFFFF"
+        val ctaBgColorStr = style["ctaBackgroundColor"] as? String ?: "#FF4285F4"
+        val ctaCornerRadius = (style["ctaCornerRadius"] as? Double)?.toFloat() ?: 4f
+        val ctaBold = style["ctaBold"] as? Boolean ?: true
+        val ctaPadH = (style["ctaPaddingHorizontal"] as? Double)?.toFloat() ?: 8f
 
         val titleColor = parseColor(titleColorStr)
         val bodyColor = parseColor(bodyColorStr)
         val bgColor = parseColor(bgColorStr)
 
-        // NativeAdView
-        val adView = NativeAdView(context)
-        adView.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
+        // Get native ad data
+        val title = nativeAd.getAdTitle() ?: ""
+        val description = nativeAd.getAdBodyText() ?: ""
+        val iconDrawable = nativeAd.getAppIcon()
+        val callToAction = nativeAd.getAdCallToActionText()
+        val starRating = nativeAd.getAdStarRating()
+
+        // Root container
+        val adView = LinearLayout(context)
+        adView.orientation = LinearLayout.HORIZONTAL
+        adView.layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
             (height * density).toInt()
         )
         adView.setBackgroundColor(bgColor)
@@ -85,15 +115,6 @@ class NativeAdViewBuilder(private val context: Context) {
             }
             adView.clipToOutline = true
         }
-
-        // Horizontal container
-        val container = LinearLayout(context)
-        container.orientation = LinearLayout.HORIZONTAL
-        container.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.MATCH_PARENT
-        )
-        adView.addView(container)
 
         // Icon image
         val iconView = ImageView(context)
@@ -111,8 +132,10 @@ class NativeAdViewBuilder(private val context: Context) {
             }
             iconView.clipToOutline = true
         }
-        container.addView(iconView)
-        adView.iconView = iconView
+        if (iconDrawable != null) {
+            iconView.setImageDrawable(iconDrawable)
+        }
+        adView.addView(iconView)
 
         // Text container
         val textContainer = LinearLayout(context)
@@ -121,7 +144,7 @@ class NativeAdViewBuilder(private val context: Context) {
             "start" -> android.view.Gravity.TOP
             "end" -> android.view.Gravity.BOTTOM
             "center" -> android.view.Gravity.CENTER_VERTICAL
-            else -> android.view.Gravity.CENTER_VERTICAL // spaceBetween/spaceAround/spaceEvenly handled after adding children
+            else -> android.view.Gravity.CENTER_VERTICAL
         }
         val textParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
         textContainer.layoutParams = textParams
@@ -131,7 +154,14 @@ class NativeAdViewBuilder(private val context: Context) {
             (textPadH * density).toInt(),
             (textPadV * density).toInt()
         )
-        container.addView(textContainer)
+        adView.addView(textContainer)
+
+        // Top spacer for space modes
+        if (textAlignment == "spaceAround" || textAlignment == "spaceEvenly") {
+            val topSpacer = View(context)
+            topSpacer.layoutParams = LinearLayout.LayoutParams(0, 0, if (textAlignment == "spaceAround") 0.5f else 1f)
+            textContainer.addView(topSpacer)
+        }
 
         // Headline
         val headlineView = TextView(context)
@@ -146,22 +176,10 @@ class NativeAdViewBuilder(private val context: Context) {
         headlineView.typeface = titleTypeface
         headlineView.maxLines = titleMaxLines
         headlineView.ellipsize = android.text.TextUtils.TruncateAt.END
-        headlineView.text = nativeAd.headline
-
-        // For space modes, add spacers
-        if (textAlignment == "spaceBetween" || textAlignment == "spaceAround" || textAlignment == "spaceEvenly") {
-            // Top spacer (for spaceAround and spaceEvenly)
-            if (textAlignment == "spaceAround" || textAlignment == "spaceEvenly") {
-                val topSpacer = View(context)
-                topSpacer.layoutParams = LinearLayout.LayoutParams(0, 0, if (textAlignment == "spaceAround") 0.5f else 1f)
-                textContainer.addView(topSpacer, 0) // insert before headline
-            }
-        }
-
+        headlineView.text = title
         textContainer.addView(headlineView)
-        adView.headlineView = headlineView
 
-        // Middle spacer (for spaceBetween, spaceAround, spaceEvenly)
+        // Middle spacer
         if (textAlignment == "spaceBetween" || textAlignment == "spaceAround" || textAlignment == "spaceEvenly") {
             val midSpacer = View(context)
             midSpacer.layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
@@ -181,7 +199,7 @@ class NativeAdViewBuilder(private val context: Context) {
         bodyView.typeface = bodyTypeface
         bodyView.maxLines = 1
         bodyView.ellipsize = android.text.TextUtils.TruncateAt.END
-        bodyView.text = nativeAd.body
+        bodyView.text = description
         val bodyParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
@@ -191,22 +209,18 @@ class NativeAdViewBuilder(private val context: Context) {
         }
         bodyView.layoutParams = bodyParams
         textContainer.addView(bodyView)
-        adView.bodyView = bodyView
 
-        // Star rating row + CTA button in a horizontal row
-        val starRating = nativeAd.starRating
-        val callToAction = nativeAd.callToAction
-        val hasStarRating = showStarRating && starRating != null
-        val hasCta = showCallToAction && callToAction != null
+        // Star rating + CTA bottom row
+        val hasStarRating = showStarRating && starRating != null && starRating > 0
+        val hasCta = showCallToAction && callToAction != null && callToAction.isNotEmpty()
 
         if (hasStarRating || hasCta) {
-            // Bottom row spacer (between body and bottom row)
             if (textAlignment != "spaceBetween" && textAlignment != "spaceAround" && textAlignment != "spaceEvenly") {
-                val bottomRowMarginView = View(context)
-                bottomRowMarginView.layoutParams = LinearLayout.LayoutParams(
+                val marginView = View(context)
+                marginView.layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, (4 * density).toInt()
                 )
-                textContainer.addView(bottomRowMarginView)
+                textContainer.addView(marginView)
             }
 
             val bottomRow = LinearLayout(context)
@@ -223,18 +237,14 @@ class NativeAdViewBuilder(private val context: Context) {
                 val starInactiveColor = parseColor(starInactiveColorStr)
                 val starsView = TextView(context)
                 starsView.setTextSize(TypedValue.COMPLEX_UNIT_SP, starSize)
-                val rating = starRating!!.toFloat()
-                val fullStars = rating.toInt()
+                val rating = starRating!!.toInt()
                 val sb = StringBuilder()
                 for (i in 1..5) {
-                    sb.append(if (i <= fullStars) "★" else "☆")
+                    sb.append(if (i <= rating) "★" else "☆")
                 }
-                starsView.text = sb.toString()
-
-                // Use SpannableString for colored stars
                 val spannable = android.text.SpannableString(sb.toString())
                 for (i in 0 until 5) {
-                    val color = if (i < fullStars) starActiveColor else starInactiveColor
+                    val color = if (i < rating) starActiveColor else starInactiveColor
                     spannable.setSpan(
                         android.text.style.ForegroundColorSpan(color),
                         i, i + 1,
@@ -243,11 +253,14 @@ class NativeAdViewBuilder(private val context: Context) {
                 }
                 starsView.text = spannable
                 bottomRow.addView(starsView)
-                adView.starRatingView = starsView
             }
 
-            // Spacer between stars and CTA
+            // Spacer
             if (hasStarRating && hasCta) {
+                val spacer = View(context)
+                spacer.layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
+                bottomRow.addView(spacer)
+            } else if (hasCta) {
                 val spacer = View(context)
                 spacer.layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
                 bottomRow.addView(spacer)
@@ -267,33 +280,30 @@ class NativeAdViewBuilder(private val context: Context) {
                     (ctaPadH * density).toInt(), (4 * density).toInt()
                 )
 
-                // Background with corner radius
                 val ctaDrawable = android.graphics.drawable.GradientDrawable()
                 ctaDrawable.setColor(ctaBgColor)
                 ctaDrawable.cornerRadius = ctaCornerRadius * density
                 ctaView.background = ctaDrawable
 
                 bottomRow.addView(ctaView)
-                adView.callToActionView = ctaView
             }
 
             textContainer.addView(bottomRow)
         }
 
-        // Bottom spacer (for spaceAround and spaceEvenly)
+        // Bottom spacer for space modes
         if (textAlignment == "spaceAround" || textAlignment == "spaceEvenly") {
             val bottomSpacer = View(context)
             bottomSpacer.layoutParams = LinearLayout.LayoutParams(0, 0, if (textAlignment == "spaceAround") 0.5f else 1f)
             textContainer.addView(bottomSpacer)
         }
 
-        // Bind icon
-        nativeAd.icon?.let {
-            iconView.setImageDrawable(it.drawable)
-        }
+        container.removeAllViews()
+        container.addView(adView)
 
-        adView.setNativeAd(nativeAd)
-        return adView
+        // Register view for interaction
+        val clickableViews = arrayListOf<View>(container)
+        nativeAd.registerViewForInteraction(container, null, iconView, clickableViews)
     }
 
     private fun parseColor(colorStr: String): Int {
@@ -302,5 +312,11 @@ class NativeAdViewBuilder(private val context: Context) {
         } catch (e: Exception) {
             Color.WHITE
         }
+    }
+
+    override fun getView(): View = container
+
+    override fun dispose() {
+        container.removeAllViews()
     }
 }

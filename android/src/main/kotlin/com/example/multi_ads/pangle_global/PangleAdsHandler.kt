@@ -9,6 +9,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import com.bytedance.sdk.openadsdk.api.init.PAGConfig
 import com.bytedance.sdk.openadsdk.api.init.PAGSdk
+import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeAd
 
 class PangleAdsHandler(
     private val flutterPluginBinding: FlutterPlugin.FlutterPluginBinding
@@ -20,12 +21,16 @@ class PangleAdsHandler(
     private val context: Context = flutterPluginBinding.applicationContext
     private var activity: Activity? = null
     
+    private val nativeEventChannel: EventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "multi_ads/pangle_global/native_events")
+
     private var splashEventSink: EventChannel.EventSink? = null
     private var interstitialEventSink: EventChannel.EventSink? = null
+    private var nativeEventSink: EventChannel.EventSink? = null
     
     private var splashAdManager: SplashAdManager? = null
     private var interstitialAdManager: InterstitialAdManager? = null
     private val bannerAdManagers = mutableMapOf<String, BannerAdManager>()
+    private var nativeAdManager: NativeAdManager? = null
 
     init {
         channel.setMethodCallHandler { call, result ->
@@ -52,6 +57,16 @@ class PangleAdsHandler(
             }
         })
         
+        nativeEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                nativeEventSink = events
+            }
+
+            override fun onCancel(arguments: Any?) {
+                nativeEventSink = null
+            }
+        })
+        
         // Register platform views
         flutterPluginBinding.platformViewRegistry.registerViewFactory(
             "multi_ads/pangle_global/banner",
@@ -62,6 +77,11 @@ class PangleAdsHandler(
             "multi_ads/pangle_global/banner_container",
             BannerAdContainerFactory(this)
         )
+        
+        flutterPluginBinding.platformViewRegistry.registerViewFactory(
+            "multi_ads/pangle_global/native",
+            NativeAdViewFactory(this)
+        )
     }
     
     fun setActivity(activity: Activity?) {
@@ -70,6 +90,10 @@ class PangleAdsHandler(
     
     fun getBannerView(listenerId: String): View? {
         return bannerAdManagers[listenerId]?.getBannerView()
+    }
+    
+    fun getNativeAd(): PAGNativeAd? {
+        return nativeAdManager?.nativeAd
     }
 
     private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -108,6 +132,15 @@ class PangleAdsHandler(
             "disposeBannerAd" -> {
                 val listenerId = call.argument<String>("listenerId") ?: ""
                 disposeBannerAd(listenerId, result)
+            }
+            "loadNativeAd" -> {
+                val slotId = call.argument<String>("slotId") ?: ""
+                @Suppress("UNCHECKED_CAST")
+                val style = call.argument<Map<String, Any>>("style")
+                loadNativeAd(slotId, style, result)
+            }
+            "disposeNativeAd" -> {
+                disposeNativeAd(result)
             }
             else -> {
                 result.notImplemented()
@@ -199,10 +232,24 @@ class PangleAdsHandler(
         bannerAdManagers.remove(listenerId)
         result.success(null)
     }
+    
+    private fun loadNativeAd(slotId: String, style: Map<String, Any>?, result: MethodChannel.Result) {
+        nativeAdManager?.dispose()
+        nativeAdManager = NativeAdManager(context, activity, slotId, style, nativeEventSink)
+        nativeAdManager?.loadAd()
+        result.success(true)
+    }
+    
+    private fun disposeNativeAd(result: MethodChannel.Result) {
+        nativeAdManager?.dispose()
+        nativeAdManager = null
+        result.success(null)
+    }
 
     fun dispose() {
         channel.setMethodCallHandler(null)
         splashEventChannel.setStreamHandler(null)
         interstitialEventChannel.setStreamHandler(null)
+        nativeEventChannel.setStreamHandler(null)
     }
 }

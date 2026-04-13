@@ -5,10 +5,12 @@ import VungleAdsSDK
 public class VungleAdsHandler: NSObject {
     var interstitialEventSink: FlutterEventSink?
     var appOpenEventSink: FlutterEventSink?
+    var nativeEventSink: FlutterEventSink?
     
     private var interstitialAdManagers: [String: VungleInterstitialAdManager] = [:]
     private var appOpenAdManagers: [String: VungleAppOpenAdManager] = [:]
     private var bannerAdManagers: [String: VungleBannerAdManager] = [:]
+    private var nativeAdManagers: [String: VungleNativeAdManager] = [:]
     private var channel: FlutterMethodChannel?
     
     public func register(with registrar: FlutterPluginRegistrar) {
@@ -23,13 +25,21 @@ public class VungleAdsHandler: NSObject {
         let appOpenEventChannel = FlutterEventChannel(name: "multi_ads/vungle/appopen_events", binaryMessenger: registrar.messenger())
         appOpenEventChannel.setStreamHandler(VungleAppOpenEventStreamHandler(handler: self))
         
+        let nativeEventChannel = FlutterEventChannel(name: "multi_ads/vungle/native_events", binaryMessenger: registrar.messenger())
+        nativeEventChannel.setStreamHandler(VungleNativeEventStreamHandler(handler: self))
+        
         // Register platform views
         registrar.register(VungleBannerAdViewFactory(messenger: registrar.messenger(), handler: self), withId: "multi_ads/vungle/banner")
         registrar.register(VungleBannerAdContainerFactory(handler: self), withId: "multi_ads/vungle/banner_container")
+        registrar.register(VungleNativeAdViewFactory(handler: self), withId: "multi_ads/vungle/native")
     }
     
     func getBannerView(listenerId: String) -> UIView? {
         return bannerAdManagers[listenerId]?.getBannerView()
+    }
+    
+    func getNativeAd(placementId: String) -> VungleNative? {
+        return nativeAdManagers[placementId]?.getNativeAd()
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -111,6 +121,22 @@ public class VungleAdsHandler: NSObject {
                 return
             }
             disposeBannerAd(listenerId: listenerId, result: result)
+            
+        case "loadNativeAd":
+            guard let args = call.arguments as? [String: Any],
+                  let placementId = args["placementId"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
+                return
+            }
+            loadNativeAd(placementId: placementId, result: result)
+            
+        case "disposeNativeAd":
+            guard let args = call.arguments as? [String: Any],
+                  let placementId = args["placementId"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
+                return
+            }
+            disposeNativeAd(placementId: placementId, result: result)
             
         default:
             result(FlutterMethodNotImplemented)
@@ -199,6 +225,20 @@ public class VungleAdsHandler: NSObject {
         bannerAdManagers.removeValue(forKey: listenerId)
         result(nil)
     }
+    
+    private func loadNativeAd(placementId: String, result: @escaping FlutterResult) {
+        nativeAdManagers[placementId]?.dispose()
+        let manager = VungleNativeAdManager(placementId: placementId, eventSink: nativeEventSink)
+        nativeAdManagers[placementId] = manager
+        manager.loadAd()
+        result(true)
+    }
+    
+    private func disposeNativeAd(placementId: String, result: @escaping FlutterResult) {
+        nativeAdManagers[placementId]?.dispose()
+        nativeAdManagers.removeValue(forKey: placementId)
+        result(nil)
+    }
 }
 
 // MARK: - Event Stream Handlers
@@ -235,6 +275,24 @@ class VungleAppOpenEventStreamHandler: NSObject, FlutterStreamHandler {
     
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
         handler?.appOpenEventSink = nil
+        return nil
+    }
+}
+
+class VungleNativeEventStreamHandler: NSObject, FlutterStreamHandler {
+    weak var handler: VungleAdsHandler?
+    
+    init(handler: VungleAdsHandler) {
+        self.handler = handler
+    }
+    
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        handler?.nativeEventSink = events
+        return nil
+    }
+    
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        handler?.nativeEventSink = nil
         return nil
     }
 }

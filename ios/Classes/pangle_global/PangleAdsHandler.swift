@@ -5,9 +5,11 @@ import PAGAdSDK
 public class PangleAdsHandler: NSObject {
     var splashEventSink: FlutterEventSink?
     var interstitialEventSink: FlutterEventSink?
+    var nativeEventSink: FlutterEventSink?
     private var splashAdManager: SplashAdManager?
     private var interstitialAdManager: InterstitialAdManager?
     private var bannerAdManagers: [String: BannerAdManager] = [:]
+    private var nativeAdManager: NativeAdManager?
     private var channel: FlutterMethodChannel?
     
     public func register(with registrar: FlutterPluginRegistrar) {
@@ -22,14 +24,24 @@ public class PangleAdsHandler: NSObject {
         let interstitialEventChannel = FlutterEventChannel(name: "multi_ads/pangle_global/interstitial_events", binaryMessenger: registrar.messenger())
         interstitialEventChannel.setStreamHandler(InterstitialEventStreamHandler(handler: self))
         
+        let nativeEventChannel = FlutterEventChannel(name: "multi_ads/pangle_global/native_events", binaryMessenger: registrar.messenger())
+        nativeEventChannel.setStreamHandler(NativeEventStreamHandler(handler: self))
+        
         registrar.register(BannerAdViewFactory(messenger: registrar.messenger()), withId: "multi_ads/pangle_global/banner")
         
         // Register banner container for displaying pre-loaded banners
         registrar.register(BannerAdContainerFactory(messenger: registrar.messenger(), handler: self), withId: "multi_ads/pangle_global/banner_container")
+        
+        // Register native ad view factory
+        registrar.register(NativeAdViewFactory(handler: self), withId: "multi_ads/pangle_global/native")
     }
     
     func getBannerView(listenerId: String) -> UIView? {
         return bannerAdManagers[listenerId]?.getBannerView()
+    }
+    
+    func getNativeAd() -> PAGLNativeAd? {
+        return nativeAdManager?.getNativeAd()
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -96,6 +108,17 @@ public class PangleAdsHandler: NSObject {
                 return
             }
             disposeBannerAd(listenerId: listenerId, result: result)
+            
+        case "loadNativeAd":
+            guard let args = call.arguments as? [String: Any],
+                  let slotId = args["slotId"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
+                return
+            }
+            loadNativeAd(slotId: slotId, result: result)
+            
+        case "disposeNativeAd":
+            disposeNativeAd(result: result)
             
         default:
             result(FlutterMethodNotImplemented)
@@ -200,6 +223,19 @@ public class PangleAdsHandler: NSObject {
         bannerAdManagers.removeValue(forKey: listenerId)
         result(nil)
     }
+    
+    private func loadNativeAd(slotId: String, result: @escaping FlutterResult) {
+        nativeAdManager?.dispose()
+        nativeAdManager = NativeAdManager(slotId: slotId, eventSink: nativeEventSink)
+        nativeAdManager?.loadAd()
+        result(true)
+    }
+    
+    private func disposeNativeAd(result: @escaping FlutterResult) {
+        nativeAdManager?.dispose()
+        nativeAdManager = nil
+        result(nil)
+    }
 }
 
 class SplashEventStreamHandler: NSObject, FlutterStreamHandler {
@@ -234,6 +270,24 @@ class InterstitialEventStreamHandler: NSObject, FlutterStreamHandler {
     
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
         handler?.interstitialEventSink = nil
+        return nil
+    }
+}
+
+class NativeEventStreamHandler: NSObject, FlutterStreamHandler {
+    weak var handler: PangleAdsHandler?
+    
+    init(handler: PangleAdsHandler) {
+        self.handler = handler
+    }
+    
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        handler?.nativeEventSink = events
+        return nil
+    }
+    
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        handler?.nativeEventSink = nil
         return nil
     }
 }
