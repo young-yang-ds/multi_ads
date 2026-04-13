@@ -132,6 +132,10 @@ class NativeAdStyle {
   /// CTA button horizontal padding (default: 8)
   final double ctaPaddingHorizontal;
 
+  /// External margin around the ad widget (default: EdgeInsets.zero)
+  /// This is applied at the Flutter widget level, not passed to native side.
+  final EdgeInsetsGeometry margin;
+
   const NativeAdStyle({
     this.height = 80,
     this.imageWidth = 120,
@@ -162,6 +166,7 @@ class NativeAdStyle {
     this.ctaCornerRadius = 4,
     this.ctaBold = true,
     this.ctaPaddingHorizontal = 8,
+    this.margin = EdgeInsets.zero,
   });
 
   /// Convert to a Map for passing as customOptions to native side

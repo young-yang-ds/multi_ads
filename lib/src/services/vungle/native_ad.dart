@@ -172,12 +172,15 @@ class VungleNativeAd {
       return const SizedBox.shrink();
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(_style.cornerRadius),
-      child: SizedBox(
-        width: double.infinity,
-        height: _style.height,
-        child: platformView,
+    return Padding(
+      padding: _style.margin,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(_style.cornerRadius),
+        child: SizedBox(
+          width: double.infinity,
+          height: _style.height,
+          child: platformView,
+        ),
       ),
     );
   }

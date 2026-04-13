@@ -132,12 +132,15 @@ class GoogleNativeAd {
     final adWidget = AdWidget(key: ObjectKey(_nativeAd!), ad: _nativeAd!);
 
     if (_useFactory) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(_style.cornerRadius),
-        child: SizedBox(
-          width: double.infinity,
-          height: _style.height,
-          child: adWidget,
+      return Padding(
+        padding: _style.margin,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(_style.cornerRadius),
+          child: SizedBox(
+            width: double.infinity,
+            height: _style.height,
+            child: adWidget,
+          ),
         ),
       );
     }
