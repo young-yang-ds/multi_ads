@@ -167,7 +167,11 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
   /// Called when another widget takes ownership from us.
   void _onOwnershipLost() {
     if (mounted) {
-      setState(() => _isAdLoaded = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _isAdLoaded = false);
+        }
+      });
     }
   }
 
