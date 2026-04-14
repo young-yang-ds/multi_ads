@@ -11,63 +11,22 @@ class VungleNativeAdsPage extends StatefulWidget {
 }
 
 class _VungleNativeAdsPageState extends State<VungleNativeAdsPage> {
-  bool _isAdLoaded = false;
   bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initAndLoad();
+    _initSdk();
   }
 
-  Future<void> _initAndLoad() async {
+  Future<void> _initSdk() async {
     final result = await VunglePlatform.instance.initialize(
       VungleAdConfig(appId: VungleAdsConfig.appId, debug: true),
     );
     debugPrint('Vungle SDK initialized: $result');
-    if (result) {
-      _isInitialized = true;
-      _loadNativeAd();
+    if (result && mounted) {
+      setState(() => _isInitialized = true);
     }
-  }
-
-  void _loadNativeAd() {
-    VungleNativeAd.load(
-      VungleAdsConfig.nativeId,
-      style: const NativeAdStyle(
-        height: 80,
-        imageWidth: 120,
-        titleFontSize: 14,
-        titleColor: Color(0xFF202124),
-        titleMaxLines: 2,
-        bodyFontSize: 10,
-        bodyColor: Color(0xFF999999),
-        backgroundColor: Color(0xFFFFFFFF),
-        cornerRadius: 10,
-      ),
-      onAdLoaded: () {
-        if (mounted) {
-          setState(() {
-            _isAdLoaded = true;
-          });
-        }
-      },
-      onAdLoadFailed: (error) {
-        debugPrint('Vungle native ad load failed: ${error.code} - ${error.message}');
-      },
-      onAdClicked: () {
-        debugPrint('Vungle native ad clicked');
-      },
-      onAdImpression: () {
-        debugPrint('Vungle native ad impression');
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    VungleNativeAd.dispose();
-    super.dispose();
   }
 
   @override
@@ -76,18 +35,34 @@ class _VungleNativeAdsPageState extends State<VungleNativeAdsPage> {
       appBar: AppBar(title: const Text('Vungle Native Ads')),
       body: Column(
         children: [
-          Expanded(
+          const Expanded(
             child: Center(
-              child: Text(
-                _isAdLoaded ? 'Native Ad Loaded' : 'Loading...',
-                style: const TextStyle(fontSize: 16),
-              ),
+              child: Text('Vungle Native Ad Demo', style: TextStyle(fontSize: 16)),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-            child: VungleNativeAd.buildWidget(),
-          ),
+          if (_isInitialized)
+            NativeAdWidget(
+              adUnitId: VungleAdsConfig.nativeId,
+              adPlatform: AdPlatform.vungle,
+              style: const NativeAdStyle(
+                height: 80,
+                imageWidth: 120,
+                titleFontSize: 14,
+                titleColor: Color(0xFF202124),
+                titleMaxLines: 2,
+                bodyFontSize: 10,
+                bodyColor: Color(0xFF999999),
+                backgroundColor: Color(0xFFFFFFFF),
+                cornerRadius: 10,
+                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+              ),
+              placeholder: const SizedBox(height: 80),
+              onAdLoaded: () => debugPrint('Vungle native ad loaded'),
+              onAdFailed: (error) => debugPrint('Vungle native ad failed: $error'),
+              onAdClicked: () => debugPrint('Vungle native ad clicked'),
+            )
+          else
+            const SizedBox(height: 80),
         ],
       ),
     );

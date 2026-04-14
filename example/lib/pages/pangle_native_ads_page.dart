@@ -11,63 +11,22 @@ class PangleNativeAdsPage extends StatefulWidget {
 }
 
 class _PangleNativeAdsPageState extends State<PangleNativeAdsPage> {
-  bool _isAdLoaded = false;
   bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initAndLoad();
+    _initSdk();
   }
 
-  Future<void> _initAndLoad() async {
+  Future<void> _initSdk() async {
     final result = await PanglePlatform.instance.initialize(
       PangleAdConfig(appId: PangleAdsConfig.appId, debug: true),
     );
     debugPrint('Pangle SDK initialized: $result');
-    if (result) {
-      _isInitialized = true;
-      _loadNativeAd();
+    if (result && mounted) {
+      setState(() => _isInitialized = true);
     }
-  }
-
-  void _loadNativeAd() {
-    PangleNativeAd.load(
-      PangleAdsConfig.nativeId,
-      style: const NativeAdStyle(
-        height: 80,
-        imageWidth: 120,
-        titleFontSize: 14,
-        titleColor: Color(0xFF202124),
-        titleMaxLines: 2,
-        bodyFontSize: 10,
-        bodyColor: Color(0xFF999999),
-        backgroundColor: Color(0xFFFFFFFF),
-        cornerRadius: 10,
-      ),
-      onAdLoaded: () {
-        if (mounted) {
-          setState(() {
-            _isAdLoaded = true;
-          });
-        }
-      },
-      onAdLoadFailed: (error) {
-        debugPrint('Pangle native ad load failed: ${error.code} - ${error.message}');
-      },
-      onAdClicked: () {
-        debugPrint('Pangle native ad clicked');
-      },
-      onAdShowed: () {
-        debugPrint('Pangle native ad showed');
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    PangleNativeAd.dispose();
-    super.dispose();
   }
 
   @override
@@ -76,18 +35,34 @@ class _PangleNativeAdsPageState extends State<PangleNativeAdsPage> {
       appBar: AppBar(title: const Text('Pangle Native Ads')),
       body: Column(
         children: [
-          Expanded(
+          const Expanded(
             child: Center(
-              child: Text(
-                _isAdLoaded ? 'Native Ad Loaded' : 'Loading...',
-                style: const TextStyle(fontSize: 16),
-              ),
+              child: Text('Pangle Native Ad Demo', style: TextStyle(fontSize: 16)),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-            child: PangleNativeAd.buildWidget(),
-          ),
+          if (_isInitialized)
+            NativeAdWidget(
+              adUnitId: PangleAdsConfig.nativeId,
+              adPlatform: AdPlatform.pangleGlobal,
+              style: const NativeAdStyle(
+                height: 80,
+                imageWidth: 120,
+                titleFontSize: 14,
+                titleColor: Color(0xFF202124),
+                titleMaxLines: 2,
+                bodyFontSize: 10,
+                bodyColor: Color(0xFF999999),
+                backgroundColor: Color(0xFFFFFFFF),
+                cornerRadius: 10,
+                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+              ),
+              placeholder: const SizedBox(height: 80),
+              onAdLoaded: () => debugPrint('Pangle native ad loaded'),
+              onAdFailed: (error) => debugPrint('Pangle native ad failed: $error'),
+              onAdClicked: () => debugPrint('Pangle native ad clicked'),
+            )
+          else
+            const SizedBox(height: 80),
         ],
       ),
     );

@@ -5,3 +5,4 @@ export 'src/utils/index.dart';
 export 'src/enum/ad_platform.dart';
 export 'src/models/ad_error.dart';
 export 'src/models/native_ad_style.dart';
+export 'src/widgets/native_ad_widget.dart';
