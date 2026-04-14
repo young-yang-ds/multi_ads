@@ -79,6 +79,7 @@ public class NativeAdViewBuilder: NSObject {
         headlineLabel.textColor = titleColor
         headlineLabel.numberOfLines = titleMaxLines
         headlineLabel.lineBreakMode = .byTruncatingTail
+        headlineLabel.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         headlineLabel.translatesAutoresizingMaskIntoConstraints = false
         adView.addSubview(headlineLabel)
         adView.headlineView = headlineLabel
@@ -89,6 +90,7 @@ public class NativeAdViewBuilder: NSObject {
         bodyLabel.textColor = bodyColor
         bodyLabel.numberOfLines = 1
         bodyLabel.lineBreakMode = .byTruncatingTail
+        bodyLabel.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         bodyLabel.translatesAutoresizingMaskIntoConstraints = false
         adView.addSubview(bodyLabel)
         adView.bodyView = bodyLabel
@@ -256,8 +258,12 @@ public class NativeAdViewBuilder: NSObject {
                 bottomGuide.heightAnchor.constraint(equalTo: topGuide.heightAnchor),
             ]
         default: // center
+            let centerY = textWrapper.centerYAnchor.constraint(equalTo: adView.centerYAnchor)
+            centerY.priority = .defaultHigh
             constraints += [
-                textWrapper.centerYAnchor.constraint(equalTo: adView.centerYAnchor),
+                centerY,
+                textWrapper.topAnchor.constraint(greaterThanOrEqualTo: adView.topAnchor),
+                textWrapper.bottomAnchor.constraint(lessThanOrEqualTo: adView.bottomAnchor),
                 headlineLabel.topAnchor.constraint(equalTo: textWrapper.topAnchor),
                 bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 4),
                 bottomAnchorView.bottomAnchor.constraint(equalTo: textWrapper.bottomAnchor),

@@ -55,6 +55,11 @@ class NativeAdWidget extends StatefulWidget {
   /// Called when the ad is clicked
   final VoidCallback? onAdClicked;
 
+  /// Whether to keep the widget alive when scrolled off-screen in a list.
+  /// Defaults to `true` to avoid expensive ad reloads.
+  /// Set to `false` if you want the ad to be disposed when not visible.
+  final bool keepAlive;
+
   const NativeAdWidget({
     super.key,
     required this.adUnitId,
@@ -66,13 +71,15 @@ class NativeAdWidget extends StatefulWidget {
     this.onAdLoaded,
     this.onAdFailed,
     this.onAdClicked,
+    this.keepAlive = true,
   });
 
   @override
   State<NativeAdWidget> createState() => _NativeAdWidgetState();
 }
 
-class _NativeAdWidgetState extends State<NativeAdWidget> {
+class _NativeAdWidgetState extends State<NativeAdWidget>
+    with AutomaticKeepAliveClientMixin {
   // ── Ownership tracking (per platform) ──────────────────────────────────
 
   /// The widget instance that currently owns each platform's ad slot.
@@ -85,6 +92,9 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
   // ── Instance state ─────────────────────────────────────────────────────
 
   bool _isAdLoaded = false;
+
+  @override
+  bool get wantKeepAlive => widget.keepAlive;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -299,6 +309,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required by AutomaticKeepAliveClientMixin
     if (_isAdLoaded && _activeOwners[widget.adPlatform] == this) {
       return _buildAdWidget();
     }
