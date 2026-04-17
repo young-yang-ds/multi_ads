@@ -35,7 +35,6 @@ class GoogleBannerAd {
       size: size,
       listener: BannerAdListener(
         onAdLoaded: (ad) async {
-          // await Future.delayed(const Duration(seconds: 2));
           onAdLoadedRefresh?.call();
 
           _isLoading = false;
@@ -87,9 +86,15 @@ class _BannerAdWidget extends StatefulWidget {
   State<_BannerAdWidget> createState() => _BannerAdWidgetState();
 }
 
-class _BannerAdWidgetState extends State<_BannerAdWidget> {
+class _BannerAdWidgetState extends State<_BannerAdWidget>
+    with SingleTickerProviderStateMixin {
   static _BannerAdWidgetState? _currentOwner;
   bool _isOwner = false;
+
+  late final AnimationController _fadeCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+  );
 
   @override
   void didChangeDependencies() {
@@ -103,6 +108,7 @@ class _BannerAdWidgetState extends State<_BannerAdWidget> {
 
   @override
   void dispose() {
+    _fadeCtrl.dispose();
     if (_currentOwner == this) {
       _currentOwner = null;
     }
@@ -112,14 +118,30 @@ class _BannerAdWidgetState extends State<_BannerAdWidget> {
   void _tryClaimOwnership() {
     if (!mounted) return;
 
-    final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
+    final route = ModalRoute.of(context);
+    final isCurrentRoute = route?.isCurrent ?? false;
 
     if (isCurrentRoute && !_isOwner) {
+      // 检查 secondaryAnimation：子页面 pop 时底层路由的 secondaryAnimation
+      // 从 completed → dismissed，在此期间 slide 动画正在进行，native UIView 处于平移中。
+      // 必须等 secondaryAnimation.isDismissed 才能插入 AdWidget，否则 collapsible
+      // banner SDK 会在错误的屏幕坐标缓存基点，导致展开偏移。
+      final secAnim = route?.secondaryAnimation;
+      if (secAnim != null && !secAnim.isDismissed) {
+        void onSecStatus(AnimationStatus s) {
+          if (s == AnimationStatus.dismissed) {
+            secAnim.removeStatusListener(onSecStatus);
+            if (mounted) _tryClaimOwnership();
+          }
+        }
+
+        secAnim.addStatusListener(onSecStatus);
+        return;
+      }
       if (_currentOwner == null || !_currentOwner!.mounted) {
         _currentOwner = this;
-        setState(() {
-          _isOwner = true;
-        });
+        setState(() => _isOwner = true);
+        _fadeCtrl.forward(from: 0.0);
       } else if (_currentOwner != this) {
         final oldOwner = _currentOwner!;
         _currentOwner = this;
@@ -128,9 +150,8 @@ class _BannerAdWidgetState extends State<_BannerAdWidget> {
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
-            setState(() {
-              _isOwner = true;
-            });
+            setState(() => _isOwner = true);
+            _fadeCtrl.forward(from: 0.0);
           }
         });
       }
@@ -152,16 +173,17 @@ class _BannerAdWidgetState extends State<_BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isOwner) {
-      return SizedBox(
-        width: widget.bannerAd.size.width.toDouble(),
-        height: widget.bannerAd.size.height.toDouble(),
-      );
-    }
-    return SizedBox(
-      width: widget.bannerAd.size.width.toDouble(),
-      height: widget.bannerAd.size.height.toDouble(),
-      child: AdWidget(key: ObjectKey(widget.bannerAd), ad: widget.bannerAd),
+    final w = widget.bannerAd.size.width.toDouble();
+    final h = widget.bannerAd.size.height.toDouble();
+    if (!_isOwner) return const SizedBox.shrink();
+    // FadeTransition from 0→1，隐藏 platform view 初始化时的灰色背景
+    return FadeTransition(
+      opacity: _fadeCtrl,
+      child: SizedBox(
+        width: w,
+        height: h,
+        child: AdWidget(key: ObjectKey(widget.bannerAd), ad: widget.bannerAd),
+      ),
     );
   }
 }
