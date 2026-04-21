@@ -1,6 +1,7 @@
 package com.example.multi_ads.vungle
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Typeface
@@ -16,6 +17,8 @@ import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 import com.vungle.ads.NativeAd
+import com.vungle.ads.internal.ui.view.MediaView
+import java.net.URL
 
 class VungleNativeAdViewFactory(
     private val handler: VungleAdsHandler
@@ -92,7 +95,7 @@ class VungleNativeAdPlatformView(
         // Get native ad data
         val title = nativeAd.getAdTitle() ?: ""
         val description = nativeAd.getAdBodyText() ?: ""
-        val iconDrawable = nativeAd.getAppIcon()
+        val iconUrl = nativeAd.getAppIcon()
         val callToAction = nativeAd.getAdCallToActionText()
         val starRating = nativeAd.getAdStarRating()
 
@@ -132,8 +135,17 @@ class VungleNativeAdPlatformView(
             }
             iconView.clipToOutline = true
         }
-        if (iconDrawable != null) {
-            iconView.setImageDrawable(iconDrawable)
+        if (!iconUrl.isNullOrEmpty()) {
+            Thread {
+                try {
+                    val stream = URL(iconUrl).openStream()
+                    val bitmap = BitmapFactory.decodeStream(stream)
+                    stream.close()
+                    iconView.post { iconView.setImageBitmap(bitmap) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load Vungle icon from URL: $iconUrl", e)
+                }
+            }.start()
         }
         adView.addView(iconView)
 
@@ -303,7 +315,8 @@ class VungleNativeAdPlatformView(
 
         // Register view for interaction
         val clickableViews = arrayListOf<View>(container)
-        nativeAd.registerViewForInteraction(container, null, iconView, clickableViews)
+        val mediaView = MediaView(context)
+        nativeAd.registerViewForInteraction(container, mediaView, iconView, clickableViews)
     }
 
     private fun parseColor(colorStr: String): Int {

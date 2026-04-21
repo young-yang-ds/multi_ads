@@ -6,7 +6,6 @@ import android.util.Log
 import io.flutter.plugin.common.EventChannel
 import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeAd
 import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeAdLoadListener
-import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeAdInteractionListener
 import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeRequest
 
 class NativeAdManager(
@@ -45,30 +44,6 @@ class NativeAdManager(
             override fun onAdLoaded(ad: PAGNativeAd?) {
                 Log.d(TAG, "Native ad loaded successfully")
                 nativeAd = ad
-
-                ad?.setAdInteractionListener(object : PAGNativeAdInteractionListener {
-                    override fun onAdShowed() {
-                        Log.d(TAG, "Native ad showed")
-                        activity?.runOnUiThread {
-                            eventSink?.success(mapOf(
-                                "event" to "onAdShowed"
-                            ))
-                        }
-                    }
-
-                    override fun onAdClicked() {
-                        Log.d(TAG, "Native ad clicked")
-                        activity?.runOnUiThread {
-                            eventSink?.success(mapOf(
-                                "event" to "onAdClicked"
-                            ))
-                        }
-                    }
-
-                    override fun onAdDismissed() {
-                        Log.d(TAG, "Native ad dismissed")
-                    }
-                })
 
                 activity?.runOnUiThread {
                     eventSink?.success(mapOf(

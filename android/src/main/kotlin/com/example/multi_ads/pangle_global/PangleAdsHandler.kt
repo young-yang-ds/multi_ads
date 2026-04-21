@@ -95,6 +95,10 @@ class PangleAdsHandler(
     fun getNativeAd(): PAGNativeAd? {
         return nativeAdManager?.nativeAd
     }
+    
+    fun getNativeEventSink(): EventChannel.EventSink? {
+        return nativeEventSink
+    }
 
     private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -152,9 +156,8 @@ class PangleAdsHandler(
         val config = PAGConfig.Builder()
             .appId(appId)
             .debugLog(debug)
-            .setGDPRConsent(PAGConfig.PAGGDPRConsentType.PAG_GDPR_CONSENT_TYPE_CONSENT)
-            .setDoNotSell(PAGConfig.PAGDoNotSellType.PAG_DO_NOT_SELL_TYPE_SELL)
-            .setChildDirected(PAGConfig.PAGChildDirectedType.PAG_CHILD_DIRECTED_TYPE_DEFAULT)
+            .setGDPRConsent(1)
+            .setPAConsent(1)
             .build()
         
         PAGSdk.init(context, config, object : PAGSdk.PAGInitCallback {

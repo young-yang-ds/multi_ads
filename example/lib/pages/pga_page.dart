@@ -42,7 +42,7 @@ class _PgaPageState extends State<PgaPage> {
 
     await Future.delayed(const Duration(milliseconds: 500));
 
-    const slotId = PangleAdsConfig.openId;
+    final slotId = PangleAdsConfig.openId;
 
     final splashAd = PangleSplashAd(
       slotId: slotId,

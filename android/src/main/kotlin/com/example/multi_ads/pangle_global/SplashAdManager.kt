@@ -1,12 +1,10 @@
 package com.example.multi_ads.pangle_global
 
 import android.app.Activity
-import android.view.ViewGroup
-import com.bytedance.sdk.openadsdk.api.splash.PAGSplashAd
-import com.bytedance.sdk.openadsdk.api.splash.PAGSplashRequest
-import com.bytedance.sdk.openadsdk.api.splash.PAGSplashAdLoadListener
-import com.bytedance.sdk.openadsdk.api.splash.PAGSplashAdInteractionListener
-import com.bytedance.sdk.openadsdk.api.PAGRequest
+import com.bytedance.sdk.openadsdk.api.open.PAGAppOpenAd
+import com.bytedance.sdk.openadsdk.api.open.PAGAppOpenAdLoadListener
+import com.bytedance.sdk.openadsdk.api.open.PAGAppOpenAdInteractionListener
+import com.bytedance.sdk.openadsdk.api.open.PAGAppOpenRequest
 import io.flutter.plugin.common.EventChannel
 
 class SplashAdManager(
@@ -15,12 +13,12 @@ class SplashAdManager(
     private val timeout: Int,
     private val eventSink: EventChannel.EventSink?
 ) {
-    private var splashAd: PAGSplashAd? = null
+    private var appOpenAd: PAGAppOpenAd? = null
 
     fun loadAd() {
-        val request = PAGRequest()
+        val request = PAGAppOpenRequest()
         
-        PAGSplashAd.load(slotId, request, object : PAGSplashAdLoadListener {
+        PAGAppOpenAd.loadAd(slotId, request, object : PAGAppOpenAdLoadListener {
             override fun onError(code: Int, message: String?) {
                 activity.runOnUiThread {
                     eventSink?.success(mapOf(
@@ -33,8 +31,8 @@ class SplashAdManager(
                 }
             }
 
-            override fun onAdLoaded(ad: PAGSplashAd?) {
-                splashAd = ad
+            override fun onAdLoaded(ad: PAGAppOpenAd?) {
+                appOpenAd = ad
                 activity.runOnUiThread {
                     eventSink?.success(mapOf("event" to "onAdLoaded"))
                     showAd()
@@ -44,10 +42,8 @@ class SplashAdManager(
     }
 
     private fun showAd() {
-        splashAd?.let { ad ->
-            val rootView = activity.window.decorView.findViewById<ViewGroup>(android.R.id.content)
-            
-            ad.setAdInteractionListener(object : PAGSplashAdInteractionListener {
+        appOpenAd?.let { ad ->
+            ad.setAdInteractionListener(object : PAGAppOpenAdInteractionListener {
                 override fun onAdShowed() {
                 }
 
@@ -57,11 +53,10 @@ class SplashAdManager(
 
                 override fun onAdDismissed() {
                     eventSink?.success(mapOf("event" to "onAdDismissed"))
-                    rootView.removeAllViews()
                 }
             })
             
-            rootView.addView(ad.splashView)
+            ad.show(activity)
         }
     }
 }

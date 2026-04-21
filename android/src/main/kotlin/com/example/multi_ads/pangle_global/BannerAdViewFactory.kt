@@ -46,14 +46,14 @@ class BannerAdView(
                 val screenWidth = context.resources.displayMetrics.widthPixels
                 val density = context.resources.displayMetrics.density
                 val widthDp = (screenWidth / density).toInt()
-                PAGBannerSize.currentScreenAdaptiveBannerSize(context, widthDp.toFloat())
+                PAGBannerSize(widthDp, 0)
             }
             else -> PAGBannerSize.BANNER_W_320_H_50
         }
         
         val request = PAGBannerRequest(bannerSize)
         
-        PAGBannerAd.load(slotId, request, object : PAGBannerAdLoadListener {
+        PAGBannerAd.loadAd(slotId, request, object : PAGBannerAdLoadListener {
             override fun onError(code: Int, message: String?) {
                 channel.invokeMethod("onBannerAdLoadFailed", mapOf(
                     "code" to code,

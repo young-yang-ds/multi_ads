@@ -18,6 +18,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://artifact.bytedance.com/repository/pangle/") }
     }
 }
 
@@ -51,14 +52,14 @@ android {
         testImplementation("org.jetbrains.kotlin:kotlin-test")
         testImplementation("org.mockito:mockito-core:5.0.0")
         
-        // Pangle Ads SDK
-        implementation("com.pangle.global:ads-sdk:5.9.0.8")
+        // Pangle Ads SDK (7.x uses pag-sdk artifact)
+        implementation("com.pangle.global:pag-sdk:7.8.0.9")
         
         // Vungle Ads SDK
         implementation("com.vungle:vungle-ads:7.6.3")
 
         // Google Mobile Ads SDK (for NativeAdViewBuilder)
-        compileOnly("com.google.android.gms:play-services-ads:24.4.0")
+        compileOnly("com.google.android.gms:play-services-ads:24.1.0")
     }
 
     testOptions {

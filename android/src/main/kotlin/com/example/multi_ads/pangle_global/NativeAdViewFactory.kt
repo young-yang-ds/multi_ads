@@ -1,6 +1,8 @@
 package com.example.multi_ads.pangle_global
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Typeface
@@ -16,6 +18,8 @@ import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeAd
+import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeAdInteractionListener
+import java.net.URL
 
 class NativeAdViewFactory(
     private val handler: PangleAdsHandler
@@ -30,7 +34,7 @@ class NativeAdViewFactory(
 class NativeAdPlatformView(
     private val context: Context,
     creationParams: Map<String, Any>?,
-    handler: PangleAdsHandler
+    private val handler: PangleAdsHandler
 ) : PlatformView {
 
     companion object {
@@ -92,7 +96,7 @@ class NativeAdPlatformView(
         val nativeAdData = nativeAd.nativeAdData
         val title = nativeAdData?.title ?: ""
         val description = nativeAdData?.description ?: ""
-        val iconDrawable = nativeAdData?.icon?.imageDrawable
+        val iconUrl = nativeAdData?.icon?.imageUrl
         val callToAction = nativeAdData?.buttonText
 
         // Root container
@@ -131,8 +135,17 @@ class NativeAdPlatformView(
             }
             iconView.clipToOutline = true
         }
-        if (iconDrawable != null) {
-            iconView.setImageDrawable(iconDrawable)
+        if (!iconUrl.isNullOrEmpty()) {
+            Thread {
+                try {
+                    val stream = URL(iconUrl).openStream()
+                    val bitmap = BitmapFactory.decodeStream(stream)
+                    stream.close()
+                    iconView.post { iconView.setImageBitmap(bitmap) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load icon from URL: $iconUrl", e)
+                }
+            }.start()
         }
         adView.addView(iconView)
 
@@ -265,8 +278,29 @@ class NativeAdPlatformView(
         container.removeAllViews()
         container.addView(adView)
 
-        // Register click interaction
-        nativeAd.registerViewForInteraction(container, arrayListOf(container))
+        // Register click interaction with 7.x API
+        val eventSink = handler.getNativeEventSink()
+        nativeAd.registerViewForInteraction(
+            container,
+            listOf<View>(container),
+            listOf<View>(),
+            null,
+            object : PAGNativeAdInteractionListener {
+                override fun onAdShowed() {
+                    Log.d(TAG, "Native ad showed")
+                    eventSink?.success(mapOf("event" to "onAdShowed"))
+                }
+
+                override fun onAdClicked() {
+                    Log.d(TAG, "Native ad clicked")
+                    eventSink?.success(mapOf("event" to "onAdClicked"))
+                }
+
+                override fun onAdDismissed() {
+                    Log.d(TAG, "Native ad dismissed")
+                }
+            }
+        )
     }
 
     private fun parseColor(colorStr: String): Int {

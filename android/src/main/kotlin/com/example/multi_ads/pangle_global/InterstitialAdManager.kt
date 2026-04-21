@@ -4,7 +4,7 @@ import android.app.Activity
 import com.bytedance.sdk.openadsdk.api.interstitial.PAGInterstitialAd
 import com.bytedance.sdk.openadsdk.api.interstitial.PAGInterstitialAdLoadListener
 import com.bytedance.sdk.openadsdk.api.interstitial.PAGInterstitialAdInteractionListener
-import com.bytedance.sdk.openadsdk.api.PAGRequest
+import com.bytedance.sdk.openadsdk.api.interstitial.PAGInterstitialRequest
 import io.flutter.plugin.common.EventChannel
 
 class InterstitialAdManager(
@@ -15,9 +15,9 @@ class InterstitialAdManager(
     private var interstitialAd: PAGInterstitialAd? = null
 
     fun loadAd() {
-        val request = PAGRequest()
+        val request = PAGInterstitialRequest()
         
-        PAGInterstitialAd.load(slotId, request, object : PAGInterstitialAdLoadListener {
+        PAGInterstitialAd.loadAd(slotId, request, object : PAGInterstitialAdLoadListener {
             override fun onError(code: Int, message: String?) {
                 activity.runOnUiThread {
                     eventSink?.success(mapOf(

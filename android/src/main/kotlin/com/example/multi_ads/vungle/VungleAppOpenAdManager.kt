@@ -95,7 +95,7 @@ class VungleAppOpenAdManager(
     }
 
     override fun onAdFailedToLoad(baseAd: BaseAd, adError: VungleError) {
-        Log.e(TAG, "onAdFailedToLoad: $placementId, error: ${adError.localizedMessage}")
+        Log.e(TAG, "onAdFailedToLoad: $placementId, code: ${adError.code}, error: ${adError.localizedMessage}")
         sendEvent("onAdLoadFailed", mapOf(
             "error" to mapOf("code" to adError.code, "message" to adError.localizedMessage)
         ))
