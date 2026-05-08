@@ -4,15 +4,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart' hide AdError;
 import '../../multi_ads.dart';
 import '../utils/log_utils.dart';
 
-/// A lifecycle-aware widget that automatically manages native ad loading,
-/// displaying, and disposal across multiple pages.
+/// A widget that displays native ads. Supports multiple simultaneous instances
+/// for Google platform (each manages its own NativeAd object).
 ///
-/// Solves the singleton limitation where only one native ad instance per
-/// platform can exist at a time. When navigating between pages:
-///
-/// 1. **Push**: New page's widget takes ownership → loads ad.
-///    Previous page's widget yields → shows [placeholder].
-/// 2. **Pop**: Current page disposed → previous page automatically reloads.
+/// For Pangle/Vungle platforms, a singleton ownership system is used since
+/// those SDKs only support one native ad at a time.
 ///
 /// Usage:
 /// ```dart
@@ -80,57 +76,177 @@ class NativeAdWidget extends StatefulWidget {
 
 class _NativeAdWidgetState extends State<NativeAdWidget>
     with AutomaticKeepAliveClientMixin {
-  // ── Ownership tracking (per platform) ──────────────────────────────────
+  // ── Ownership tracking for Pangle/Vungle (singleton platforms) ─────────
 
-  /// The widget instance that currently owns each platform's ad slot.
   static final Map<AdPlatform, _NativeAdWidgetState> _activeOwners = {};
-
-  /// LIFO stack of previous owners waiting to reload when the current
-  /// owner is disposed (e.g. page popped).
   static final Map<AdPlatform, List<_NativeAdWidgetState>> _waitingStack = {};
 
   // ── Instance state ─────────────────────────────────────────────────────
 
   bool _isAdLoaded = false;
 
+  /// Google: each instance holds its own NativeAd object (multi-instance).
+  NativeAd? _googleNativeAd;
+
   @override
   bool get wantKeepAlive => widget.keepAlive;
+
+  bool get _isGoogle => widget.adPlatform == AdPlatform.google;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
-    _acquireOwnership();
+    if (_isGoogle) {
+      _loadGoogleAd();
+    } else {
+      _acquireOwnership();
+    }
   }
 
   @override
   void dispose() {
-    _releaseOwnership();
+    if (_isGoogle) {
+      _disposeGoogleAd();
+    } else {
+      _releaseOwnership();
+    }
     super.dispose();
   }
 
-  // ── Ownership management ───────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── Google: Multi-instance support ─────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
 
-  /// Claim the ad slot for [widget.adPlatform].
-  /// If another widget currently owns it, push them onto the waiting stack.
+  void _loadGoogleAd() {
+    final style = widget.style;
+    final useFactory = style != null;
+
+    LogUtils.log(
+      'Loading Google native ad (instance: ${hashCode.toRadixString(16)})',
+      tag: 'NativeAdWidget',
+    );
+
+    if (useFactory) {
+      LogUtils.log('Native ad loading (custom style)', tag: 'google ads');
+      _googleNativeAd = NativeAd(
+        adUnitId: widget.adUnitId,
+        factoryId: 'multiAdsNativeFactory',
+        customOptions: style.toMap(),
+        request: const AdRequest(),
+        listener: _googleAdListener,
+      )..load();
+    } else {
+      LogUtils.log(
+        'Native ad loading (template: ${widget.templateType})',
+        tag: 'google ads',
+      );
+      _googleNativeAd = NativeAd(
+        adUnitId: widget.adUnitId,
+        request: const AdRequest(),
+        nativeTemplateStyle: widget.nativeTemplateStyle ??
+            NativeTemplateStyle(templateType: widget.templateType),
+        listener: _googleAdListener,
+      )..load();
+    }
+  }
+
+  NativeAdListener get _googleAdListener => NativeAdListener(
+        onAdLoaded: (ad) {
+          if (mounted) {
+            LogUtils.log('Native ad loaded', tag: 'google ads');
+            setState(() => _isAdLoaded = true);
+            widget.onAdLoaded?.call();
+          }
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _googleNativeAd = null;
+          LogUtils.log(
+            'Native ad load failed: ${error.code} - ${error.message}',
+            tag: 'google ads',
+          );
+          if (mounted) {
+            widget.onAdFailed?.call(
+              AdError(
+                code: error.code,
+                message: error.message,
+                platform: 'google',
+              ),
+            );
+          }
+        },
+        onAdClicked: (ad) {
+          LogUtils.log('Native ad clicked', tag: 'google ads');
+          widget.onAdClicked?.call();
+        },
+        onAdImpression: (ad) {
+          LogUtils.log('Native ad impression', tag: 'google ads');
+        },
+      );
+
+  void _disposeGoogleAd() {
+    _googleNativeAd?.dispose();
+    _googleNativeAd = null;
+    _isAdLoaded = false;
+    LogUtils.log(
+      'Disposed Google native ad (instance: ${hashCode.toRadixString(16)})',
+      tag: 'NativeAdWidget',
+    );
+  }
+
+  Widget _buildGoogleAdWidget() {
+    if (_googleNativeAd == null || !_isAdLoaded) {
+      return widget.placeholder ?? const SizedBox.shrink();
+    }
+
+    final adWidget =
+        AdWidget(key: ObjectKey(_googleNativeAd!), ad: _googleNativeAd!);
+    final style = widget.style;
+
+    if (style != null) {
+      return Padding(
+        padding: style.margin,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(style.cornerRadius),
+          child: SizedBox(
+            width: double.infinity,
+            height: style.height,
+            child: adWidget,
+          ),
+        ),
+      );
+    }
+
+    final constraints = widget.templateType == TemplateType.small
+        ? const BoxConstraints(
+            minWidth: 320, minHeight: 90, maxWidth: 400, maxHeight: 200)
+        : const BoxConstraints(
+            minWidth: 320, minHeight: 320, maxWidth: 400, maxHeight: 400);
+
+    return Container(
+      color: Colors.white,
+      child: ConstrainedBox(constraints: constraints, child: adWidget),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── Pangle / Vungle: Singleton ownership system ────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+
   void _acquireOwnership() {
     final platform = widget.adPlatform;
     final currentOwner = _activeOwners[platform];
 
     if (currentOwner != null && currentOwner != this) {
-      // Push old owner to the waiting stack
       _waitingStack.putIfAbsent(platform, () => []);
       _waitingStack[platform]!.remove(currentOwner);
       _waitingStack[platform]!.add(currentOwner);
-      // Notify old owner: it should show placeholder
       currentOwner._onOwnershipLost();
     }
 
-    // Remove self from waiting stack (if we were waiting)
     _waitingStack[platform]?.remove(this);
-
-    // Become the active owner
     _activeOwners[platform] = this;
 
     LogUtils.log(
@@ -138,21 +254,17 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
       tag: 'NativeAdWidget',
     );
 
-    _loadAd();
+    _loadSingletonAd();
   }
 
-  /// Release ownership when this widget is disposed.
-  /// If there is a previous owner on the stack, let it reload.
   void _releaseOwnership() {
     final platform = widget.adPlatform;
 
-    // Clean up from waiting stack regardless
     _waitingStack[platform]?.remove(this);
 
-    // Only the active owner should dispose the ad
     if (_activeOwners[platform] != this) return;
 
-    _disposePlatformAd();
+    _disposeSingletonAd();
     _activeOwners.remove(platform);
 
     LogUtils.log(
@@ -160,7 +272,6 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
       tag: 'NativeAdWidget',
     );
 
-    // Notify the previous waiting widget to take over
     final stack = _waitingStack[platform];
     if (stack != null && stack.isNotEmpty) {
       final next = stack.removeLast();
@@ -174,7 +285,6 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
     }
   }
 
-  /// Called when another widget takes ownership from us.
   void _onOwnershipLost() {
     if (mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -185,69 +295,46 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
     }
   }
 
-  // ── Ad loading / disposal ──────────────────────────────────────────────
+  // ── Singleton ad loading / disposal ────────────────────────────────────
 
-  /// Dispose existing ad (awaiting async platforms), then load a fresh one.
-  Future<void> _loadAd() async {
+  Future<void> _loadSingletonAd() async {
     if (!mounted) return;
     setState(() => _isAdLoaded = false);
 
-    // Fully dispose previous ad to clear singleton state
-    await _disposePlatformAdAsync();
+    await _disposeSingletonAdAsync();
 
-    // Guard: still alive and still the owner?
     if (!mounted || _activeOwners[widget.adPlatform] != this) return;
 
-    _loadPlatformAd();
+    _loadSingletonPlatformAd();
   }
 
-  /// Fire-and-forget dispose (used in [_releaseOwnership] which is sync).
-  void _disposePlatformAd() {
+  void _disposeSingletonAd() {
     final platform = widget.adPlatform;
-    if (platform == AdPlatform.google) {
-      GoogleNativeAd.dispose();
-    } else if (platform == AdPlatform.pangleGlobal) {
-      PangleNativeAd.dispose(); // Future – fire & forget
+    if (platform == AdPlatform.pangleGlobal) {
+      PangleNativeAd.dispose();
     } else if (platform == AdPlatform.vungle) {
-      VungleNativeAd.dispose(); // Future – fire & forget
+      VungleNativeAd.dispose();
     }
   }
 
-  /// Awaitable dispose (ensures async method-channel call completes before
-  /// we call [load] again – avoids flag race conditions).
-  Future<void> _disposePlatformAdAsync() async {
+  Future<void> _disposeSingletonAdAsync() async {
     final platform = widget.adPlatform;
-    if (platform == AdPlatform.google) {
-      GoogleNativeAd.dispose();
-    } else if (platform == AdPlatform.pangleGlobal) {
+    if (platform == AdPlatform.pangleGlobal) {
       await PangleNativeAd.dispose();
     } else if (platform == AdPlatform.vungle) {
       await VungleNativeAd.dispose();
     }
   }
 
-  /// Route to the correct platform-specific [load] with unified callbacks.
-  void _loadPlatformAd() {
+  void _loadSingletonPlatformAd() {
     final platform = widget.adPlatform;
 
-    if (platform == AdPlatform.google) {
-      GoogleNativeAd.load(
-        widget.adUnitId,
-        style: widget.style,
-        templateType: widget.templateType,
-        nativeTemplateStyle: widget.nativeTemplateStyle,
-        onAdLoadedRefresh: _handleAdLoaded,
-        onAdFailedToLoadHandle: (code, message) => _handleAdFailed(
-          AdError(code: code, message: message, platform: 'google'),
-        ),
-        onAdClickedHandle: () => widget.onAdClicked?.call(),
-      );
-    } else if (platform == AdPlatform.pangleGlobal) {
+    if (platform == AdPlatform.pangleGlobal) {
       PangleNativeAd.load(
         widget.adUnitId,
         style: widget.style,
-        onAdLoaded: _handleAdLoaded,
-        onAdLoadFailed: (error) => _handleAdFailed(
+        onAdLoaded: _handleSingletonAdLoaded,
+        onAdLoadFailed: (error) => _handleSingletonAdFailed(
           AdError(
             code: error.code,
             message: error.message,
@@ -260,8 +347,8 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
       VungleNativeAd.load(
         widget.adUnitId,
         style: widget.style,
-        onAdLoaded: _handleAdLoaded,
-        onAdLoadFailed: (error) => _handleAdFailed(
+        onAdLoaded: _handleSingletonAdLoaded,
+        onAdLoadFailed: (error) => _handleSingletonAdFailed(
           AdError(
             code: error.code,
             message: error.message,
@@ -273,16 +360,14 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
     }
   }
 
-  // ── Callbacks ──────────────────────────────────────────────────────────
-
-  void _handleAdLoaded() {
+  void _handleSingletonAdLoaded() {
     if (mounted && _activeOwners[widget.adPlatform] == this) {
       setState(() => _isAdLoaded = true);
       widget.onAdLoaded?.call();
     }
   }
 
-  void _handleAdFailed(AdError error) {
+  void _handleSingletonAdFailed(AdError error) {
     if (mounted && _activeOwners[widget.adPlatform] == this) {
       LogUtils.log(
         'Ad load failed: ${error.code} - ${error.message}',
@@ -292,14 +377,9 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────
-
-  /// Build the ad widget for the current platform.
-  Widget _buildAdWidget() {
+  Widget _buildSingletonAdWidget() {
     final platform = widget.adPlatform;
-    if (platform == AdPlatform.google) {
-      return GoogleNativeAd.buildWidget();
-    } else if (platform == AdPlatform.pangleGlobal) {
+    if (platform == AdPlatform.pangleGlobal) {
       return PangleNativeAd.buildWidget();
     } else if (platform == AdPlatform.vungle) {
       return VungleNativeAd.buildWidget();
@@ -307,11 +387,24 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
     return const SizedBox.shrink();
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── Build ──────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required by AutomaticKeepAliveClientMixin
+
+    if (_isGoogle) {
+      if (_isAdLoaded) {
+        return _buildGoogleAdWidget();
+      }
+      return widget.placeholder ?? const SizedBox.shrink();
+    }
+
+    // Pangle / Vungle
     if (_isAdLoaded && _activeOwners[widget.adPlatform] == this) {
-      return _buildAdWidget();
+      return _buildSingletonAdWidget();
     }
     return widget.placeholder ?? const SizedBox.shrink();
   }
