@@ -25,6 +25,7 @@ class VungleNativeAdViewFactory(
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
+        @Suppress("UNCHECKED_CAST")
         val creationParams = args as? Map<String, Any>
         return VungleNativeAdPlatformView(context, creationParams, handler)
     }
@@ -43,14 +44,15 @@ class VungleNativeAdPlatformView(
     private val container: FrameLayout = FrameLayout(context)
 
     init {
-        val placementId = creationParams?.get("placementId") as? String ?: ""
+        val listenerId = creationParams?.get("listenerId") as? String ?: ""
+        @Suppress("UNCHECKED_CAST")
         val style = creationParams?.get("style") as? Map<String, Any> ?: emptyMap()
-        val nativeAd = handler.getNativeAd(placementId)
+        val nativeAd = handler.getNativeAd(listenerId)
 
         if (nativeAd != null) {
             buildNativeAdView(nativeAd, style)
         } else {
-            Log.w(TAG, "Native ad not loaded for placement: $placementId")
+            Log.w(TAG, "Native ad not loaded for listener: $listenerId")
         }
     }
 

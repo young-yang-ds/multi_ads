@@ -38,8 +38,15 @@ public class VungleAdsHandler: NSObject {
         return bannerAdManagers[listenerId]?.getBannerView()
     }
     
-    func getNativeAd(placementId: String) -> VungleNative? {
-        return nativeAdManagers[placementId]?.getNativeAd()
+    func getNativeAd(listenerId: String) -> VungleNative? {
+        return nativeAdManagers[listenerId]?.getNativeAd()
+    }
+    
+    func updateNativeEventSink(_ sink: FlutterEventSink?) {
+        self.nativeEventSink = sink
+        for manager in nativeAdManagers.values {
+            manager.updateEventSink(sink)
+        }
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -124,19 +131,20 @@ public class VungleAdsHandler: NSObject {
             
         case "loadNativeAd":
             guard let args = call.arguments as? [String: Any],
-                  let placementId = args["placementId"] as? String else {
+                  let placementId = args["placementId"] as? String,
+                  let listenerId = args["listenerId"] as? String else {
                 result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
                 return
             }
-            loadNativeAd(placementId: placementId, result: result)
+            loadNativeAd(placementId: placementId, listenerId: listenerId, result: result)
             
         case "disposeNativeAd":
             guard let args = call.arguments as? [String: Any],
-                  let placementId = args["placementId"] as? String else {
+                  let listenerId = args["listenerId"] as? String else {
                 result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
                 return
             }
-            disposeNativeAd(placementId: placementId, result: result)
+            disposeNativeAd(listenerId: listenerId, result: result)
             
         default:
             result(FlutterMethodNotImplemented)
@@ -226,17 +234,19 @@ public class VungleAdsHandler: NSObject {
         result(nil)
     }
     
-    private func loadNativeAd(placementId: String, result: @escaping FlutterResult) {
-        nativeAdManagers[placementId]?.dispose()
-        let manager = VungleNativeAdManager(placementId: placementId, eventSink: nativeEventSink)
-        nativeAdManagers[placementId] = manager
+    private func loadNativeAd(placementId: String, listenerId: String, result: @escaping FlutterResult) {
+        if let existing = nativeAdManagers[listenerId] {
+            existing.dispose()
+        }
+        let manager = VungleNativeAdManager(listenerId: listenerId, placementId: placementId, eventSink: nativeEventSink)
+        nativeAdManagers[listenerId] = manager
         manager.loadAd()
         result(true)
     }
     
-    private func disposeNativeAd(placementId: String, result: @escaping FlutterResult) {
-        nativeAdManagers[placementId]?.dispose()
-        nativeAdManagers.removeValue(forKey: placementId)
+    private func disposeNativeAd(listenerId: String, result: @escaping FlutterResult) {
+        nativeAdManagers[listenerId]?.dispose()
+        nativeAdManagers.removeValue(forKey: listenerId)
         result(nil)
     }
 }
@@ -287,12 +297,12 @@ class VungleNativeEventStreamHandler: NSObject, FlutterStreamHandler {
     }
     
     func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-        handler?.nativeEventSink = events
+        handler?.updateNativeEventSink(events)
         return nil
     }
     
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
-        handler?.nativeEventSink = nil
+        handler?.updateNativeEventSink(nil)
         return nil
     }
 }

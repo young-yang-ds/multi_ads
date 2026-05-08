@@ -63,11 +63,11 @@ class VungleAdsHandler(
 
         nativeEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                nativeEventSink = events
+                updateNativeEventSink(events)
             }
 
             override fun onCancel(arguments: Any?) {
-                nativeEventSink = null
+                updateNativeEventSink(null)
             }
         })
 
@@ -96,8 +96,15 @@ class VungleAdsHandler(
         return bannerAdManagers[listenerId]?.getBannerView()
     }
 
-    fun getNativeAd(placementId: String): com.vungle.ads.NativeAd? {
-        return nativeAdManagers[placementId]?.nativeAd
+    fun getNativeAd(listenerId: String): com.vungle.ads.NativeAd? {
+        return nativeAdManagers[listenerId]?.nativeAd
+    }
+
+    private fun updateNativeEventSink(sink: EventChannel.EventSink?) {
+        nativeEventSink = sink
+        for (manager in nativeAdManagers.values) {
+            manager.updateEventSink(sink)
+        }
     }
 
     private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -146,13 +153,14 @@ class VungleAdsHandler(
             }
             "loadNativeAd" -> {
                 val placementId = call.argument<String>("placementId") ?: ""
+                val listenerId = call.argument<String>("listenerId") ?: ""
                 @Suppress("UNCHECKED_CAST")
                 val style = call.argument<Map<String, Any>>("style")
-                loadNativeAd(placementId, style, result)
+                loadNativeAd(placementId, listenerId, style, result)
             }
             "disposeNativeAd" -> {
-                val placementId = call.argument<String>("placementId") ?: ""
-                disposeNativeAd(placementId, result)
+                val listenerId = call.argument<String>("listenerId") ?: ""
+                disposeNativeAd(listenerId, result)
             }
             else -> {
                 result.notImplemented()
@@ -252,17 +260,17 @@ class VungleAdsHandler(
         result.success(null)
     }
 
-    private fun loadNativeAd(placementId: String, style: Map<String, Any>?, result: MethodChannel.Result) {
-        nativeAdManagers[placementId]?.dispose()
-        val manager = VungleNativeAdManager(context, activity, placementId, style, nativeEventSink)
-        nativeAdManagers[placementId] = manager
+    private fun loadNativeAd(placementId: String, listenerId: String, style: Map<String, Any>?, result: MethodChannel.Result) {
+        nativeAdManagers[listenerId]?.dispose()
+        val manager = VungleNativeAdManager(context, activity, listenerId, placementId, style, nativeEventSink)
+        nativeAdManagers[listenerId] = manager
         manager.loadAd()
         result.success(true)
     }
 
-    private fun disposeNativeAd(placementId: String, result: MethodChannel.Result) {
-        nativeAdManagers[placementId]?.dispose()
-        nativeAdManagers.remove(placementId)
+    private fun disposeNativeAd(listenerId: String, result: MethodChannel.Result) {
+        nativeAdManagers[listenerId]?.dispose()
+        nativeAdManagers.remove(listenerId)
         result.success(null)
     }
 

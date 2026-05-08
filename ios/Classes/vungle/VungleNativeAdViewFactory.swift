@@ -29,10 +29,10 @@ class VungleNativeAdPlatformView: NSObject, FlutterPlatformView {
         super.init()
         
         if let args = args as? [String: Any],
-           let placementId = args["placementId"] as? String,
+           let listenerId = args["listenerId"] as? String,
            let style = args["style"] as? [String: Any],
-           let nativeAd = handler?.getNativeAd(placementId: placementId) {
-            print("[VungleNativeAd] Building native ad view for placement: \(placementId)")
+           let nativeAd = handler?.getNativeAd(listenerId: listenerId) {
+            print("[VungleNativeAd] Building native ad view for listener: \(listenerId)")
             buildNativeAdView(nativeAd: nativeAd, style: style)
         } else {
             print("[VungleNativeAd] Failed to build view - ad not loaded or invalid args")

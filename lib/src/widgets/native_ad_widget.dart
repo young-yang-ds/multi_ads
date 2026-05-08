@@ -5,10 +5,8 @@ import '../../multi_ads.dart';
 import '../utils/log_utils.dart';
 
 /// A widget that displays native ads. Supports multiple simultaneous instances
-/// for Google platform (each manages its own NativeAd object).
-///
-/// For Pangle/Vungle platforms, a singleton ownership system is used since
-/// those SDKs only support one native ad at a time.
+/// for all platforms (Google, Pangle, Vungle). Each widget instance manages
+/// its own ad object, so listing many ads in a scroll view works correctly.
 ///
 /// Usage:
 /// ```dart
@@ -38,7 +36,7 @@ class NativeAdWidget extends StatefulWidget {
   /// Google only: Custom template style (ignored when [style] is provided)
   final NativeTemplateStyle? nativeTemplateStyle;
 
-  /// Widget to show while ad is loading or when ownership is lost.
+  /// Widget to show while ad is loading.
   /// Defaults to [SizedBox.shrink] if not provided.
   final Widget? placeholder;
 
@@ -76,11 +74,6 @@ class NativeAdWidget extends StatefulWidget {
 
 class _NativeAdWidgetState extends State<NativeAdWidget>
     with AutomaticKeepAliveClientMixin {
-  // ── Ownership tracking for Pangle/Vungle (singleton platforms) ─────────
-
-  static final Map<AdPlatform, _NativeAdWidgetState> _activeOwners = {};
-  static final Map<AdPlatform, List<_NativeAdWidgetState>> _waitingStack = {};
-
   // ── Instance state ─────────────────────────────────────────────────────
 
   bool _isAdLoaded = false;
@@ -88,10 +81,18 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
   /// Google: each instance holds its own NativeAd object (multi-instance).
   NativeAd? _googleNativeAd;
 
+  /// Pangle: each instance holds its own PangleNativeAd (multi-instance).
+  PangleNativeAd? _pangleNativeAd;
+
+  /// Vungle: each instance holds its own VungleNativeAd (multi-instance).
+  VungleNativeAd? _vungleNativeAd;
+
   @override
   bool get wantKeepAlive => widget.keepAlive;
 
   bool get _isGoogle => widget.adPlatform == AdPlatform.google;
+  bool get _isPangle => widget.adPlatform == AdPlatform.pangleGlobal;
+  bool get _isVungle => widget.adPlatform == AdPlatform.vungle;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -100,8 +101,10 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
     super.initState();
     if (_isGoogle) {
       _loadGoogleAd();
-    } else {
-      _acquireOwnership();
+    } else if (_isPangle) {
+      _loadPangleAd();
+    } else if (_isVungle) {
+      _loadVungleAd();
     }
   }
 
@@ -109,8 +112,10 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
   void dispose() {
     if (_isGoogle) {
       _disposeGoogleAd();
-    } else {
-      _releaseOwnership();
+    } else if (_isPangle) {
+      _disposePangleAd();
+    } else if (_isVungle) {
+      _disposeVungleAd();
     }
     super.dispose();
   }
@@ -232,159 +237,115 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ── Pangle / Vungle: Singleton ownership system ────────────────────────
+  // ── Pangle: Multi-instance support ─────────────────────────────────────
   // ══════════════════════════════════════════════════════════════════════════
 
-  void _acquireOwnership() {
-    final platform = widget.adPlatform;
-    final currentOwner = _activeOwners[platform];
-
-    if (currentOwner != null && currentOwner != this) {
-      _waitingStack.putIfAbsent(platform, () => []);
-      _waitingStack[platform]!.remove(currentOwner);
-      _waitingStack[platform]!.add(currentOwner);
-      currentOwner._onOwnershipLost();
-    }
-
-    _waitingStack[platform]?.remove(this);
-    _activeOwners[platform] = this;
-
+  void _loadPangleAd() {
+    _pangleNativeAd = PangleNativeAd.create();
     LogUtils.log(
-      'Acquired ownership for ${platform.name}',
+      'Loading Pangle native ad (listenerId: ${_pangleNativeAd!.listenerId})',
       tag: 'NativeAdWidget',
     );
-
-    _loadSingletonAd();
-  }
-
-  void _releaseOwnership() {
-    final platform = widget.adPlatform;
-
-    _waitingStack[platform]?.remove(this);
-
-    if (_activeOwners[platform] != this) return;
-
-    _disposeSingletonAd();
-    _activeOwners.remove(platform);
-
-    LogUtils.log(
-      'Released ownership for ${platform.name}',
-      tag: 'NativeAdWidget',
-    );
-
-    final stack = _waitingStack[platform];
-    if (stack != null && stack.isNotEmpty) {
-      final next = stack.removeLast();
-      if (next.mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (next.mounted) {
-            next._acquireOwnership();
-          }
-        });
-      }
-    }
-  }
-
-  void _onOwnershipLost() {
-    if (mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    _pangleNativeAd!.loadAd(
+      widget.adUnitId,
+      style: widget.style,
+      onAdLoaded: () {
         if (mounted) {
-          setState(() => _isAdLoaded = false);
+          setState(() => _isAdLoaded = true);
+          widget.onAdLoaded?.call();
         }
-      });
-    }
+      },
+      onAdLoadFailed: (error) {
+        if (mounted) {
+          LogUtils.log(
+            'Pangle native ad load failed: ${error.code} - ${error.message}',
+            tag: 'NativeAdWidget',
+          );
+          widget.onAdFailed?.call(
+            AdError(
+              code: error.code,
+              message: error.message,
+              platform: 'pangleGlobal',
+            ),
+          );
+        }
+      },
+      onAdClicked: () => widget.onAdClicked?.call(),
+    );
   }
 
-  // ── Singleton ad loading / disposal ────────────────────────────────────
-
-  Future<void> _loadSingletonAd() async {
-    if (!mounted) return;
-    setState(() => _isAdLoaded = false);
-
-    await _disposeSingletonAdAsync();
-
-    if (!mounted || _activeOwners[widget.adPlatform] != this) return;
-
-    _loadSingletonPlatformAd();
+  void _disposePangleAd() {
+    final id = _pangleNativeAd?.listenerId;
+    _pangleNativeAd?.disposeAd();
+    _pangleNativeAd = null;
+    _isAdLoaded = false;
+    LogUtils.log(
+      'Disposed Pangle native ad (listenerId: $id)',
+      tag: 'NativeAdWidget',
+    );
   }
 
-  void _disposeSingletonAd() {
-    final platform = widget.adPlatform;
-    if (platform == AdPlatform.pangleGlobal) {
-      PangleNativeAd.dispose();
-    } else if (platform == AdPlatform.vungle) {
-      VungleNativeAd.dispose();
+  Widget _buildPangleAdWidget() {
+    if (_pangleNativeAd == null || !_isAdLoaded) {
+      return widget.placeholder ?? const SizedBox.shrink();
     }
+    return _pangleNativeAd!.buildAdWidget();
   }
 
-  Future<void> _disposeSingletonAdAsync() async {
-    final platform = widget.adPlatform;
-    if (platform == AdPlatform.pangleGlobal) {
-      await PangleNativeAd.dispose();
-    } else if (platform == AdPlatform.vungle) {
-      await VungleNativeAd.dispose();
-    }
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── Vungle: Multi-instance support ─────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+
+  void _loadVungleAd() {
+    _vungleNativeAd = VungleNativeAd.create();
+    LogUtils.log(
+      'Loading Vungle native ad (listenerId: ${_vungleNativeAd!.listenerId})',
+      tag: 'NativeAdWidget',
+    );
+    _vungleNativeAd!.loadAd(
+      widget.adUnitId,
+      style: widget.style,
+      onAdLoaded: () {
+        if (mounted) {
+          setState(() => _isAdLoaded = true);
+          widget.onAdLoaded?.call();
+        }
+      },
+      onAdLoadFailed: (error) {
+        if (mounted) {
+          LogUtils.log(
+            'Vungle native ad load failed: ${error.code} - ${error.message}',
+            tag: 'NativeAdWidget',
+          );
+          widget.onAdFailed?.call(
+            AdError(
+              code: error.code,
+              message: error.message,
+              platform: 'vungle',
+            ),
+          );
+        }
+      },
+      onAdClicked: () => widget.onAdClicked?.call(),
+    );
   }
 
-  void _loadSingletonPlatformAd() {
-    final platform = widget.adPlatform;
-
-    if (platform == AdPlatform.pangleGlobal) {
-      PangleNativeAd.load(
-        widget.adUnitId,
-        style: widget.style,
-        onAdLoaded: _handleSingletonAdLoaded,
-        onAdLoadFailed: (error) => _handleSingletonAdFailed(
-          AdError(
-            code: error.code,
-            message: error.message,
-            platform: 'pangleGlobal',
-          ),
-        ),
-        onAdClicked: () => widget.onAdClicked?.call(),
-      );
-    } else if (platform == AdPlatform.vungle) {
-      VungleNativeAd.load(
-        widget.adUnitId,
-        style: widget.style,
-        onAdLoaded: _handleSingletonAdLoaded,
-        onAdLoadFailed: (error) => _handleSingletonAdFailed(
-          AdError(
-            code: error.code,
-            message: error.message,
-            platform: 'vungle',
-          ),
-        ),
-        onAdClicked: () => widget.onAdClicked?.call(),
-      );
-    }
+  void _disposeVungleAd() {
+    final id = _vungleNativeAd?.listenerId;
+    _vungleNativeAd?.disposeAd();
+    _vungleNativeAd = null;
+    _isAdLoaded = false;
+    LogUtils.log(
+      'Disposed Vungle native ad (listenerId: $id)',
+      tag: 'NativeAdWidget',
+    );
   }
 
-  void _handleSingletonAdLoaded() {
-    if (mounted && _activeOwners[widget.adPlatform] == this) {
-      setState(() => _isAdLoaded = true);
-      widget.onAdLoaded?.call();
+  Widget _buildVungleAdWidget() {
+    if (_vungleNativeAd == null || !_isAdLoaded) {
+      return widget.placeholder ?? const SizedBox.shrink();
     }
-  }
-
-  void _handleSingletonAdFailed(AdError error) {
-    if (mounted && _activeOwners[widget.adPlatform] == this) {
-      LogUtils.log(
-        'Ad load failed: ${error.code} - ${error.message}',
-        tag: 'NativeAdWidget',
-      );
-      widget.onAdFailed?.call(error);
-    }
-  }
-
-  Widget _buildSingletonAdWidget() {
-    final platform = widget.adPlatform;
-    if (platform == AdPlatform.pangleGlobal) {
-      return PangleNativeAd.buildWidget();
-    } else if (platform == AdPlatform.vungle) {
-      return VungleNativeAd.buildWidget();
-    }
-    return const SizedBox.shrink();
+    return _vungleNativeAd!.buildAdWidget();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -402,10 +363,20 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
       return widget.placeholder ?? const SizedBox.shrink();
     }
 
-    // Pangle / Vungle
-    if (_isAdLoaded && _activeOwners[widget.adPlatform] == this) {
-      return _buildSingletonAdWidget();
+    if (_isPangle) {
+      if (_isAdLoaded) {
+        return _buildPangleAdWidget();
+      }
+      return widget.placeholder ?? const SizedBox.shrink();
     }
+
+    if (_isVungle) {
+      if (_isAdLoaded) {
+        return _buildVungleAdWidget();
+      }
+      return widget.placeholder ?? const SizedBox.shrink();
+    }
+
     return widget.placeholder ?? const SizedBox.shrink();
   }
 }

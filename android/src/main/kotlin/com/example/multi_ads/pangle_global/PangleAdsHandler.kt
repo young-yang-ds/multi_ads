@@ -30,7 +30,7 @@ class PangleAdsHandler(
     private var splashAdManager: SplashAdManager? = null
     private var interstitialAdManager: InterstitialAdManager? = null
     private val bannerAdManagers = mutableMapOf<String, BannerAdManager>()
-    private var nativeAdManager: NativeAdManager? = null
+    private val nativeAdManagers = mutableMapOf<String, NativeAdManager>()
 
     init {
         channel.setMethodCallHandler { call, result ->
@@ -60,10 +60,16 @@ class PangleAdsHandler(
         nativeEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                 nativeEventSink = events
+                for (mgr in nativeAdManagers.values) {
+                    mgr.updateEventSink(events)
+                }
             }
 
             override fun onCancel(arguments: Any?) {
                 nativeEventSink = null
+                for (mgr in nativeAdManagers.values) {
+                    mgr.updateEventSink(null)
+                }
             }
         })
         
@@ -92,8 +98,8 @@ class PangleAdsHandler(
         return bannerAdManagers[listenerId]?.getBannerView()
     }
     
-    fun getNativeAd(): PAGNativeAd? {
-        return nativeAdManager?.nativeAd
+    fun getNativeAd(listenerId: String): PAGNativeAd? {
+        return nativeAdManagers[listenerId]?.nativeAd
     }
     
     fun getNativeEventSink(): EventChannel.EventSink? {
@@ -139,12 +145,14 @@ class PangleAdsHandler(
             }
             "loadNativeAd" -> {
                 val slotId = call.argument<String>("slotId") ?: ""
+                val listenerId = call.argument<String>("listenerId") ?: ""
                 @Suppress("UNCHECKED_CAST")
                 val style = call.argument<Map<String, Any>>("style")
-                loadNativeAd(slotId, style, result)
+                loadNativeAd(slotId, listenerId, style, result)
             }
             "disposeNativeAd" -> {
-                disposeNativeAd(result)
+                val listenerId = call.argument<String>("listenerId") ?: ""
+                disposeNativeAd(listenerId, result)
             }
             else -> {
                 result.notImplemented()
@@ -236,16 +244,18 @@ class PangleAdsHandler(
         result.success(null)
     }
     
-    private fun loadNativeAd(slotId: String, style: Map<String, Any>?, result: MethodChannel.Result) {
-        nativeAdManager?.dispose()
-        nativeAdManager = NativeAdManager(context, activity, slotId, style, nativeEventSink)
-        nativeAdManager?.loadAd()
+    private fun loadNativeAd(slotId: String, listenerId: String, style: Map<String, Any>?, result: MethodChannel.Result) {
+        // Dispose existing manager with the same listenerId (if any)
+        nativeAdManagers[listenerId]?.dispose()
+        val manager = NativeAdManager(context, activity, listenerId, slotId, style, nativeEventSink)
+        nativeAdManagers[listenerId] = manager
+        manager.loadAd()
         result.success(true)
     }
     
-    private fun disposeNativeAd(result: MethodChannel.Result) {
-        nativeAdManager?.dispose()
-        nativeAdManager = null
+    private fun disposeNativeAd(listenerId: String, result: MethodChannel.Result) {
+        nativeAdManagers[listenerId]?.dispose()
+        nativeAdManagers.remove(listenerId)
         result.success(null)
     }
 

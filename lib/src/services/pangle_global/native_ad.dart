@@ -9,65 +9,41 @@ import 'models/ad_error.dart';
 import 'pangle_method_channel.dart';
 
 /// Pangle Global Native Ad
+///
+/// Supports multiple simultaneous instances. Each instance has its own
+/// [listenerId] to distinguish events coming through the shared EventChannel.
 class PangleNativeAd {
   static const MethodChannel _channel =
       MethodChannel('multi_ads/pangle_global');
   static const EventChannel _eventChannel =
       EventChannel('multi_ads/pangle_global/native_events');
 
-  static bool _isLoaded = false;
-  static bool _isLoading = false;
-  static NativeAdStyle _style = const NativeAdStyle();
-  static String _slotId = '';
+  // ── Global event dispatcher ─────────────────────────────────────────────
+  static bool _globalListenerSetup = false;
+  static final Map<String, PangleNativeAd> _instances = {};
+  static int _idCounter = 0;
 
-  static Function()? _onAdLoaded;
-  static Function(PangleAdError error)? _onAdLoadFailed;
-  static Function()? _onAdClicked;
-  static Function()? _onAdShowed;
-
-  static bool _eventListenerSetup = false;
-
-  static void _setupEventListener() {
-    if (_eventListenerSetup) return;
-    _eventListenerSetup = true;
+  static void _setupGlobalListener() {
+    if (_globalListenerSetup) return;
+    _globalListenerSetup = true;
 
     _eventChannel.receiveBroadcastStream().listen((event) {
       try {
         final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
+        final String listenerId = data['listenerId'] as String? ?? '';
         final String eventType = data['event'] as String? ?? '';
-        pangleLog('[PangleNativeAd] Event received: $eventType');
-        LogUtils.log('Event received: $eventType', tag: 'PangleNativeAd');
+        pangleLog(
+            '[PangleNativeAd] Event received: $eventType (listenerId=$listenerId)');
 
-        switch (eventType) {
-          case 'onAdLoaded':
-            _isLoading = false;
-            _isLoaded = true;
-            pangleLog('[PangleNativeAd] Ad loaded');
-            LogUtils.log('Ad loaded', tag: 'PangleNativeAd');
-            _onAdLoaded?.call();
-            break;
-          case 'onAdLoadFailed':
-            _isLoading = false;
-            _isLoaded = false;
-            final error = PangleAdError.fromJson(
-                Map<String, dynamic>.from(data['error'] ?? {}));
-            pangleLog(
-                '[PangleNativeAd] Ad load failed: ${error.code} - ${error.message}');
-            LogUtils.log('Ad load failed: ${error.code} - ${error.message}',
-                tag: 'PangleNativeAd');
-            _onAdLoadFailed?.call(error);
-            break;
-          case 'onAdClicked':
-            pangleLog('[PangleNativeAd] Ad clicked');
-            LogUtils.log('Ad clicked', tag: 'PangleNativeAd');
-            _onAdClicked?.call();
-            break;
-          case 'onAdShowed':
-            pangleLog('[PangleNativeAd] Ad showed');
-            LogUtils.log('Ad showed', tag: 'PangleNativeAd');
-            _onAdShowed?.call();
-            break;
+        final instance = _instances[listenerId];
+        if (instance == null) {
+          LogUtils.log(
+            'Event for unknown listenerId=$listenerId dropped ($eventType)',
+            tag: 'PangleNativeAd',
+          );
+          return;
         }
+        instance._handleEvent(eventType, data);
       } catch (e) {
         LogUtils.log('Event handling error: $e', tag: 'PangleNativeAd');
       }
@@ -76,8 +52,62 @@ class PangleNativeAd {
     });
   }
 
-  /// Load a Pangle native ad
-  static Future<bool> load(
+  // ── Instance state ──────────────────────────────────────────────────────
+  final String listenerId;
+
+  bool _isLoaded = false;
+  bool _isLoading = false;
+  NativeAdStyle _style = const NativeAdStyle();
+  String _slotId = '';
+
+  Function()? _onAdLoaded;
+  Function(PangleAdError error)? _onAdLoadFailed;
+  Function()? _onAdClicked;
+  Function()? _onAdShowed;
+
+  PangleNativeAd._internal(this.listenerId);
+
+  /// Create a new native ad instance.
+  factory PangleNativeAd.create() {
+    final id = 'pangle_native_${DateTime.now().microsecondsSinceEpoch}_${_idCounter++}';
+    final inst = PangleNativeAd._internal(id);
+    _instances[id] = inst;
+    _setupGlobalListener();
+    return inst;
+  }
+
+  void _handleEvent(String eventType, Map<dynamic, dynamic> data) {
+    switch (eventType) {
+      case 'onAdLoaded':
+        _isLoading = false;
+        _isLoaded = true;
+        LogUtils.log('Ad loaded ($listenerId)', tag: 'PangleNativeAd');
+        _onAdLoaded?.call();
+        break;
+      case 'onAdLoadFailed':
+        _isLoading = false;
+        _isLoaded = false;
+        final error = PangleAdError.fromJson(
+            Map<String, dynamic>.from(data['error'] ?? {}));
+        LogUtils.log(
+          'Ad load failed ($listenerId): ${error.code} - ${error.message}',
+          tag: 'PangleNativeAd',
+        );
+        _onAdLoadFailed?.call(error);
+        break;
+      case 'onAdClicked':
+        LogUtils.log('Ad clicked ($listenerId)', tag: 'PangleNativeAd');
+        _onAdClicked?.call();
+        break;
+      case 'onAdShowed':
+        LogUtils.log('Ad showed ($listenerId)', tag: 'PangleNativeAd');
+        _onAdShowed?.call();
+        break;
+    }
+  }
+
+  /// Load this native ad instance.
+  Future<bool> loadAd(
     String slotId, {
     NativeAdStyle? style,
     Function()? onAdLoaded,
@@ -86,11 +116,9 @@ class PangleNativeAd {
     Function()? onAdShowed,
   }) async {
     if (_isLoading) return false;
-    if (_isLoaded) return true;
-
-    _setupEventListener();
 
     _isLoading = true;
+    _isLoaded = false;
     _slotId = slotId;
     _style = style ?? const NativeAdStyle();
     _onAdLoaded = onAdLoaded;
@@ -98,31 +126,34 @@ class PangleNativeAd {
     _onAdClicked = onAdClicked;
     _onAdShowed = onAdShowed;
 
-    pangleLog('[PangleNativeAd] Loading ad with slotId: $slotId');
-    LogUtils.log('Loading ad with slotId: $slotId', tag: 'PangleNativeAd');
+    LogUtils.log(
+      'Loading ad ($listenerId) slotId=$slotId',
+      tag: 'PangleNativeAd',
+    );
 
     try {
       final result = await _channel.invokeMethod<bool>('loadNativeAd', {
+        'listenerId': listenerId,
         'slotId': slotId,
         'style': _style.toMap(),
       });
       return result ?? false;
     } catch (e) {
       _isLoading = false;
-      pangleLog('[PangleNativeAd] Load error: $e');
-      LogUtils.log('Load error: $e', tag: 'PangleNativeAd');
+      LogUtils.log('Load error ($listenerId): $e', tag: 'PangleNativeAd');
       onAdLoadFailed?.call(PangleAdError(code: -1, message: e.toString()));
       return false;
     }
   }
 
-  /// Build the native ad widget
-  static Widget buildWidget() {
+  /// Build the native ad widget for this instance.
+  Widget buildAdWidget() {
     if (!_isLoaded) {
       return const SizedBox.shrink();
     }
 
     final Map<String, dynamic> creationParams = {
+      'listenerId': listenerId,
       'slotId': _slotId,
       'style': _style.toMap(),
     };
@@ -178,12 +209,14 @@ class PangleNativeAd {
     );
   }
 
-  /// Dispose the native ad
-  static Future<void> dispose() async {
+  /// Dispose this instance.
+  Future<void> disposeAd() async {
     try {
-      await _channel.invokeMethod('disposeNativeAd');
+      await _channel.invokeMethod('disposeNativeAd', {
+        'listenerId': listenerId,
+      });
     } catch (e) {
-      pangleLog('[PangleNativeAd] Dispose error: $e');
+      pangleLog('[PangleNativeAd] Dispose error ($listenerId): $e');
     }
     _isLoaded = false;
     _isLoading = false;
@@ -191,8 +224,53 @@ class PangleNativeAd {
     _onAdLoadFailed = null;
     _onAdClicked = null;
     _onAdShowed = null;
+    _instances.remove(listenerId);
   }
 
-  static bool get isLoaded => _isLoaded;
-  static bool get isLoading => _isLoading;
+  bool get isLoaded => _isLoaded;
+  bool get isLoading => _isLoading;
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ── Legacy static API (backwards compatibility for single-instance) ───
+  // ═══════════════════════════════════════════════════════════════════════
+
+  static PangleNativeAd? _defaultInstance;
+
+  static PangleNativeAd _ensureDefault() {
+    return _defaultInstance ??= PangleNativeAd.create();
+  }
+
+  /// Legacy: load with the default (shared) instance.
+  static Future<bool> load(
+    String slotId, {
+    NativeAdStyle? style,
+    Function()? onAdLoaded,
+    Function(PangleAdError error)? onAdLoadFailed,
+    Function()? onAdClicked,
+    Function()? onAdShowed,
+  }) {
+    return _ensureDefault().loadAd(
+      slotId,
+      style: style,
+      onAdLoaded: onAdLoaded,
+      onAdLoadFailed: onAdLoadFailed,
+      onAdClicked: onAdClicked,
+      onAdShowed: onAdShowed,
+    );
+  }
+
+  /// Legacy: build the widget of the default instance.
+  static Widget buildWidget() {
+    final inst = _defaultInstance;
+    if (inst == null) return const SizedBox.shrink();
+    return inst.buildAdWidget();
+  }
+
+  /// Legacy: dispose the default instance.
+  static Future<void> dispose() async {
+    final inst = _defaultInstance;
+    if (inst == null) return;
+    await inst.disposeAd();
+    _defaultInstance = null;
+  }
 }

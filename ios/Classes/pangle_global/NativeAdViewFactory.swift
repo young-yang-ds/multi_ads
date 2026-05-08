@@ -30,8 +30,9 @@ class NativeAdPlatformView: NSObject, FlutterPlatformView {
         
         if let args = args as? [String: Any],
            let style = args["style"] as? [String: Any],
-           let nativeAd = handler?.getNativeAd() {
-            print("[PangleNativeAd] Building native ad view")
+           let listenerId = args["listenerId"] as? String,
+           let nativeAd = handler?.getNativeAd(listenerId: listenerId) {
+            print("[PangleNativeAd] Building native ad view for listenerId: \(listenerId)")
             buildNativeAdView(nativeAd: nativeAd, style: style)
         } else {
             print("[PangleNativeAd] Failed to build view - ad not loaded or invalid args")

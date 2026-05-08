@@ -9,7 +9,7 @@ public class PangleAdsHandler: NSObject {
     private var splashAdManager: SplashAdManager?
     private var interstitialAdManager: InterstitialAdManager?
     private var bannerAdManagers: [String: BannerAdManager] = [:]
-    private var nativeAdManager: NativeAdManager?
+    private var nativeAdManagers: [String: NativeAdManager] = [:]
     private var channel: FlutterMethodChannel?
     
     public func register(with registrar: FlutterPluginRegistrar) {
@@ -40,8 +40,15 @@ public class PangleAdsHandler: NSObject {
         return bannerAdManagers[listenerId]?.getBannerView()
     }
     
-    func getNativeAd() -> PAGLNativeAd? {
-        return nativeAdManager?.getNativeAd()
+    func getNativeAd(listenerId: String) -> PAGLNativeAd? {
+        return nativeAdManagers[listenerId]?.getNativeAd()
+    }
+    
+    func updateNativeEventSink(_ sink: FlutterEventSink?) {
+        self.nativeEventSink = sink
+        for manager in nativeAdManagers.values {
+            manager.updateEventSink(sink)
+        }
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -111,14 +118,20 @@ public class PangleAdsHandler: NSObject {
             
         case "loadNativeAd":
             guard let args = call.arguments as? [String: Any],
-                  let slotId = args["slotId"] as? String else {
+                  let slotId = args["slotId"] as? String,
+                  let listenerId = args["listenerId"] as? String else {
                 result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
                 return
             }
-            loadNativeAd(slotId: slotId, result: result)
+            loadNativeAd(slotId: slotId, listenerId: listenerId, result: result)
             
         case "disposeNativeAd":
-            disposeNativeAd(result: result)
+            guard let args = call.arguments as? [String: Any],
+                  let listenerId = args["listenerId"] as? String else {
+                result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
+                return
+            }
+            disposeNativeAd(listenerId: listenerId, result: result)
             
         default:
             result(FlutterMethodNotImplemented)
@@ -224,16 +237,22 @@ public class PangleAdsHandler: NSObject {
         result(nil)
     }
     
-    private func loadNativeAd(slotId: String, result: @escaping FlutterResult) {
-        nativeAdManager?.dispose()
-        nativeAdManager = NativeAdManager(slotId: slotId, eventSink: nativeEventSink)
-        nativeAdManager?.loadAd()
+    private func loadNativeAd(slotId: String, listenerId: String, result: @escaping FlutterResult) {
+        // Dispose existing manager with same listenerId
+        if let existing = nativeAdManagers[listenerId] {
+            existing.dispose()
+        }
+        let manager = NativeAdManager(listenerId: listenerId, slotId: slotId, eventSink: nativeEventSink)
+        nativeAdManagers[listenerId] = manager
+        manager.loadAd()
         result(true)
     }
     
-    private func disposeNativeAd(result: @escaping FlutterResult) {
-        nativeAdManager?.dispose()
-        nativeAdManager = nil
+    private func disposeNativeAd(listenerId: String, result: @escaping FlutterResult) {
+        if let manager = nativeAdManagers[listenerId] {
+            manager.dispose()
+            nativeAdManagers.removeValue(forKey: listenerId)
+        }
         result(nil)
     }
 }
@@ -282,12 +301,12 @@ class NativeEventStreamHandler: NSObject, FlutterStreamHandler {
     }
     
     func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-        handler?.nativeEventSink = events
+        handler?.updateNativeEventSink(events)
         return nil
     }
     
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
-        handler?.nativeEventSink = nil
+        handler?.updateNativeEventSink(nil)
         return nil
     }
 }

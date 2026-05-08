@@ -5,16 +5,22 @@ import PAGAdSDK
 class NativeAdManager: NSObject {
     private var nativeAd: PAGLNativeAd?
     private var eventSink: FlutterEventSink?
+    private let listenerId: String
     private let slotId: String
     
-    init(slotId: String, eventSink: FlutterEventSink?) {
+    init(listenerId: String, slotId: String, eventSink: FlutterEventSink?) {
+        self.listenerId = listenerId
         self.slotId = slotId
         self.eventSink = eventSink
         super.init()
     }
     
+    func updateEventSink(_ sink: FlutterEventSink?) {
+        self.eventSink = sink
+    }
+    
     func loadAd() {
-        print("[PangleNativeAd] Loading ad with slotId: \(slotId)")
+        print("[PangleNativeAd] Loading ad with listenerId: \(listenerId), slotId: \(slotId)")
         let request = PAGNativeRequest()
         
         PAGLNativeAd.load(withSlotID: slotId, request: request) { [weak self] ad, error in
@@ -22,9 +28,10 @@ class NativeAdManager: NSObject {
             
             if let error = error {
                 let errorCode = (error as NSError).code
-                print("[PangleNativeAd] Ad load failed: \(errorCode) - \(error.localizedDescription)")
+                print("[PangleNativeAd] Ad load failed (\(self.listenerId)): \(errorCode) - \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.eventSink?([
+                        "listenerId": self.listenerId,
                         "event": "onAdLoadFailed",
                         "error": [
                             "code": errorCode,
@@ -38,10 +45,11 @@ class NativeAdManager: NSObject {
             if let ad = ad {
                 self.nativeAd = ad
                 ad.delegate = self
-                print("[PangleNativeAd] Ad loaded successfully")
+                print("[PangleNativeAd] Ad loaded successfully (\(self.listenerId))")
                 
                 DispatchQueue.main.async {
                     self.eventSink?([
+                        "listenerId": self.listenerId,
                         "event": "onAdLoaded"
                     ])
                 }
@@ -54,7 +62,7 @@ class NativeAdManager: NSObject {
     }
     
     func dispose() {
-        print("[PangleNativeAd] Disposing ad")
+        print("[PangleNativeAd] Disposing ad (\(listenerId))")
         nativeAd = nil
     }
 }
@@ -62,24 +70,26 @@ class NativeAdManager: NSObject {
 // MARK: - PAGLNativeAdDelegate
 extension NativeAdManager: PAGLNativeAdDelegate {
     func adDidShow(_ ad: PAGAdProtocol) {
-        print("[PangleNativeAd] Ad showed")
+        print("[PangleNativeAd] Ad showed (\(listenerId))")
         DispatchQueue.main.async {
             self.eventSink?([
+                "listenerId": self.listenerId,
                 "event": "onAdShowed"
             ])
         }
     }
     
     func adDidClick(_ ad: PAGAdProtocol) {
-        print("[PangleNativeAd] Ad clicked")
+        print("[PangleNativeAd] Ad clicked (\(listenerId))")
         DispatchQueue.main.async {
             self.eventSink?([
+                "listenerId": self.listenerId,
                 "event": "onAdClicked"
             ])
         }
     }
     
     func adDidDismiss(_ ad: PAGAdProtocol) {
-        print("[PangleNativeAd] Ad dismissed")
+        print("[PangleNativeAd] Ad dismissed (\(listenerId))")
     }
 }

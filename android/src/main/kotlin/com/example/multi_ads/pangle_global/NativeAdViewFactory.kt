@@ -26,6 +26,7 @@ class NativeAdViewFactory(
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
+        @Suppress("UNCHECKED_CAST")
         val creationParams = args as? Map<String, Any>
         return NativeAdPlatformView(context, creationParams, handler)
     }
@@ -42,18 +43,20 @@ class NativeAdPlatformView(
     }
 
     private val container: FrameLayout = FrameLayout(context)
+    private val listenerId: String = (creationParams?.get("listenerId") as? String) ?: ""
 
     init {
+        @Suppress("UNCHECKED_CAST")
         val style = creationParams?.get("style") as? Map<String, Any> ?: emptyMap()
-        val nativeAd = handler.getNativeAd()
+        val nativeAd = handler.getNativeAd(listenerId)
 
         if (nativeAd != null) {
+            Log.d(TAG, "Building native ad view for listenerId: $listenerId")
             buildNativeAdView(nativeAd, style)
         } else {
-            Log.w(TAG, "Native ad not loaded yet")
+            Log.w(TAG, "Native ad not loaded yet for listenerId: $listenerId")
         }
     }
-
     private fun buildNativeAdView(nativeAd: PAGNativeAd, style: Map<String, Any>) {
         val density = context.resources.displayMetrics.density
 
@@ -288,12 +291,12 @@ class NativeAdPlatformView(
             object : PAGNativeAdInteractionListener {
                 override fun onAdShowed() {
                     Log.d(TAG, "Native ad showed")
-                    eventSink?.success(mapOf("event" to "onAdShowed"))
+                    eventSink?.success(mapOf("listenerId" to listenerId, "event" to "onAdShowed"))
                 }
 
                 override fun onAdClicked() {
                     Log.d(TAG, "Native ad clicked")
-                    eventSink?.success(mapOf("event" to "onAdClicked"))
+                    eventSink?.success(mapOf("listenerId" to listenerId, "event" to "onAdClicked"))
                 }
 
                 override fun onAdDismissed() {
