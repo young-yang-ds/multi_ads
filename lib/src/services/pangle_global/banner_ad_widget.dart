@@ -144,7 +144,7 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
         return const Size(728, 90);
       case BannerAdSize.anchoredAdaptive:
         final screenWidth = MediaQuery.of(context).size.width;
-        return Size(screenWidth, 90);
+        return Size(screenWidth, 50);
     }
   }
 
