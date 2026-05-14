@@ -282,10 +282,16 @@ class VungleBannerAdWidget extends StatefulWidget {
   State<VungleBannerAdWidget> createState() => _VungleBannerAdWidgetState();
 }
 
-class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
+class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget>
+    with SingleTickerProviderStateMixin {
   late final String _listenerId;
   bool _isAdLoaded = false;
   Widget? _platformView;
+
+  late final AnimationController _fadeCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+  );
 
   @override
   void initState() {
@@ -297,6 +303,7 @@ class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
 
   @override
   void dispose() {
+    _fadeCtrl.dispose();
     _VungleBannerCallbackManager().unregisterWidget(_listenerId);
     super.dispose();
   }
@@ -307,6 +314,7 @@ class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
       setState(() {
         _isAdLoaded = true;
       });
+      _fadeCtrl.forward(from: 0.0);
     }
     widget.onAdLoaded?.call();
   }
@@ -342,26 +350,24 @@ class _VungleBannerAdWidgetState extends State<VungleBannerAdWidget> {
 
     _platformView ??= _buildPlatformView();
 
-    if (!_isAdLoaded) {
-      return Offstage(
-        offstage: true,
-        child: SizedBox(
-          width: size.width,
-          height: size.height,
-          child: _platformView,
+    return ClipRect(
+      child: SizedOverflowBox(
+        size: _isAdLoaded ? Size(double.infinity, size.height) : Size.zero,
+        alignment: Alignment.topCenter,
+        child: FadeTransition(
+          opacity: _isAdLoaded ? _fadeCtrl : kAlwaysCompleteAnimation,
+          child: Container(
+            width: double.infinity,
+            height: size.height,
+            color: widget.backgroundColor,
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: size.width,
+              height: size.height,
+              child: _platformView,
+            ),
+          ),
         ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      height: size.height,
-      color: widget.backgroundColor,
-      alignment: Alignment.center,
-      child: SizedBox(
-        width: size.width,
-        height: size.height,
-        child: _platformView,
       ),
     );
   }
