@@ -158,7 +158,9 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
 
     return SizedBox(
       width: size.width,
-      height: _isAdLoaded ? size.height : 0,
+      height: (defaultTargetPlatform == TargetPlatform.android || _isAdLoaded)
+          ? size.height
+          : 0,
       child: _platformView,
     );
   }

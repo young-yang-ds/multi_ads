@@ -35,7 +35,7 @@ class BannerAdManager(
                 val screenWidth = context.resources.displayMetrics.widthPixels
                 val density = context.resources.displayMetrics.density
                 val widthDp = (screenWidth / density).toInt()
-                PAGBannerSize(widthDp, 0)
+                PAGBannerSize(widthDp, 50)
             }
             else -> PAGBannerSize.BANNER_W_320_H_50
         }
