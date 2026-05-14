@@ -161,10 +161,10 @@ class PangleAdsHandler(
     }
 
     private fun initialize(appId: String, debug: Boolean, result: MethodChannel.Result) {
+        // Note: PAGConfig.Builder.setGDPRConsent has been removed since Pangle SDK 7.9.0.9.
         val config = PAGConfig.Builder()
             .appId(appId)
             .debugLog(debug)
-            .setGDPRConsent(1)
             .setPAConsent(1)
             .build()
         
