@@ -62,8 +62,13 @@ class _BannerChannelHandler {
       for (var listener in _listeners.values) {
         switch (call.method) {
           case 'onBannerAdLoaded':
-            pangleLog('[Flutter Banner] Ad loaded successfully');
-            listener.onAdLoadedInternal();
+            double? adHeight;
+            if (call.arguments is Map) {
+              final args = Map<String, dynamic>.from(call.arguments as Map);
+              adHeight = (args['height'] as num?)?.toDouble();
+            }
+            pangleLog('[Flutter Banner] Ad loaded successfully, height: $adHeight');
+            listener.onAdLoadedInternal(height: adHeight);
             break;
           case 'onBannerAdLoadFailed':
             final error = PangleAdError.fromJson(
@@ -109,12 +114,16 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
   late final String _listenerId;
   final _channelHandler = _BannerChannelHandler();
   bool _isAdLoaded = false;
+  double? _adHeight;
   Widget? _platformView;
 
-  void onAdLoadedInternal() {
+  void onAdLoadedInternal({double? height}) {
     if (mounted) {
       setState(() {
         _isAdLoaded = true;
+        if (height != null && height > 0) {
+          _adHeight = height;
+        }
       });
     }
     widget.onAdLoaded?.call();
@@ -156,10 +165,12 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
 
     _platformView ??= _buildPlatformView();
 
+    final displayHeight = _adHeight ?? size.height;
+
     return SizedBox(
       width: size.width,
       height: (defaultTargetPlatform == TargetPlatform.android || _isAdLoaded)
-          ? size.height
+          ? displayHeight
           : 0,
       child: _platformView,
     );

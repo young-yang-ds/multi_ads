@@ -78,7 +78,10 @@ class BannerAdView(
                     
                     container.removeAllViews()
                     container.addView(it.bannerView)
-                    channel.invokeMethod("onBannerAdLoaded", null)
+                    val density = container.context.resources.displayMetrics.density
+                    val heightDp = (it.bannerView.layoutParams?.height ?: 0) / density
+                    val actualHeight = if (heightDp > 0) heightDp.toDouble() else bannerSize.height.toDouble()
+                    channel.invokeMethod("onBannerAdLoaded", mapOf("height" to actualHeight))
                 }
             }
         })
