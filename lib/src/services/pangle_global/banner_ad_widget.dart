@@ -110,12 +110,18 @@ class _BannerChannelHandler {
   }
 }
 
-class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
+class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget>
+    with SingleTickerProviderStateMixin {
   late final String _listenerId;
   final _channelHandler = _BannerChannelHandler();
   bool _isAdLoaded = false;
   double? _adHeight;
   Widget? _platformView;
+
+  late final AnimationController _fadeCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+  );
 
   void onAdLoadedInternal({double? height}) {
     if (mounted) {
@@ -125,6 +131,7 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
           _adHeight = height;
         }
       });
+      _fadeCtrl.forward(from: 0.0);
     }
     widget.onAdLoaded?.call();
   }
@@ -139,6 +146,7 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
 
   @override
   void dispose() {
+    _fadeCtrl.dispose();
     _channelHandler.unregisterListener(_listenerId);
     super.dispose();
   }
@@ -167,12 +175,19 @@ class _PangleBannerAdWidgetState extends State<PangleBannerAdWidget> {
 
     final displayHeight = _adHeight ?? size.height;
 
-    return SizedBox(
-      width: size.width,
-      height: (defaultTargetPlatform == TargetPlatform.android || _isAdLoaded)
-          ? displayHeight
-          : 0,
-      child: _platformView,
+    return ClipRect(
+      child: SizedOverflowBox(
+        size: Size(size.width, _isAdLoaded ? displayHeight : 0),
+        alignment: Alignment.topCenter,
+        child: FadeTransition(
+          opacity: _isAdLoaded ? _fadeCtrl : kAlwaysCompleteAnimation,
+          child: SizedBox(
+            width: size.width,
+            height: displayHeight,
+            child: _platformView,
+          ),
+        ),
+      ),
     );
   }
 
