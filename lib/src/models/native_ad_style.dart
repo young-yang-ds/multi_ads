@@ -22,6 +22,52 @@ enum NativeAdTextAlignment {
   spaceEvenly,
 }
 
+/// Layout mode for native ads.
+enum NativeAdLayoutMode {
+  /// Default: icon on the left, title/body/CTA on the right.
+  horizontal,
+
+  /// Full-width main image on top, icon+title row below,
+  /// full-width CTA at the bottom (suitable for full-screen native ads).
+  vertical,
+}
+
+/// Scale mode for the main image in vertical layout.
+enum NativeAdImageScaleMode {
+  /// Fill the area by cropping (Android CENTER_CROP / iOS scaleAspectFill).
+  cover,
+
+  /// Fit inside without cropping, may letterbox (Android FIT_CENTER / iOS scaleAspectFit).
+  contain,
+
+  /// Stretch to fill, may distort (Android FIT_XY / iOS scaleToFill).
+  fill,
+}
+
+/// Source selection for the main image in vertical layout.
+enum NativeAdMainImageSource {
+  /// Auto: prefer media image (large), fall back to icon.
+  auto,
+
+  /// Use the media image only (Google only; ignored on Pangle/Vungle).
+  media,
+
+  /// Use the icon image only.
+  icon,
+}
+
+/// Vertical content alignment inside the ad container (vertical layout only).
+enum NativeAdVerticalContentAlignment {
+  /// Align content to the top of the container (default).
+  top,
+
+  /// Center content vertically inside the container.
+  center,
+
+  /// Align content to the bottom of the container.
+  bottom,
+}
+
 /// Style configuration for native ads in factory mode.
 ///
 /// All style properties are passed to the native side via `customOptions`
@@ -136,6 +182,39 @@ class NativeAdStyle {
   /// This is applied at the Flutter widget level, not passed to native side.
   final EdgeInsetsGeometry margin;
 
+  /// Layout mode for the native ad.
+  /// - [NativeAdLayoutMode.horizontal] (default): icon on the left, title/body/CTA on the right.
+  /// - [NativeAdLayoutMode.vertical]: full-width main image on top, icon+title row below,
+  ///   full-width CTA at the bottom (suitable for full-screen native ads).
+  final NativeAdLayoutMode layoutMode;
+
+  // ─── Vertical-mode main image controls ───────────────────────────────
+
+  /// (vertical only) Height of the top main image. Defaults to [imageHeight] when null.
+  final double? mainImageHeight;
+
+  /// (vertical only) Scale mode of the top main image. Default: [NativeAdImageScaleMode.cover].
+  final NativeAdImageScaleMode mainImageScaleMode;
+
+  /// (vertical only) Corner radius of the top main image. Default: 0.
+  final double mainImageCornerRadius;
+
+  /// (vertical only) Background color of the main image area
+  /// (visible as letterbox bars when scaleMode = contain). Default: transparent.
+  final Color mainImageBackgroundColor;
+
+  /// (vertical only) Source of the top main image. Default: [NativeAdMainImageSource.auto].
+  final NativeAdMainImageSource mainImageSource;
+
+  /// (vertical only) Outer padding around the main image
+  /// (gap between the image and the ad container edges). Default: [EdgeInsets.zero].
+  final EdgeInsets mainImagePadding;
+
+  /// (vertical only) Where to align the content block (image + title row + CTA)
+  /// inside the ad container along the vertical axis.
+  /// Default: [NativeAdVerticalContentAlignment.top].
+  final NativeAdVerticalContentAlignment verticalContentAlignment;
+
   const NativeAdStyle({
     this.height = 80,
     this.imageWidth = 120,
@@ -167,6 +246,14 @@ class NativeAdStyle {
     this.ctaBold = true,
     this.ctaPaddingHorizontal = 8,
     this.margin = EdgeInsets.zero,
+    this.layoutMode = NativeAdLayoutMode.horizontal,
+    this.mainImageHeight,
+    this.mainImageScaleMode = NativeAdImageScaleMode.cover,
+    this.mainImageCornerRadius = 0,
+    this.mainImageBackgroundColor = const Color(0x00000000),
+    this.mainImageSource = NativeAdMainImageSource.auto,
+    this.mainImagePadding = EdgeInsets.zero,
+    this.verticalContentAlignment = NativeAdVerticalContentAlignment.top,
   });
 
   /// Convert to a Map for passing as customOptions to native side
@@ -201,6 +288,17 @@ class NativeAdStyle {
       'ctaCornerRadius': ctaCornerRadius,
       'ctaBold': ctaBold,
       'ctaPaddingHorizontal': ctaPaddingHorizontal,
+      'layoutMode': layoutMode.name,
+      if (mainImageHeight != null) 'mainImageHeight': mainImageHeight!,
+      'mainImageScaleMode': mainImageScaleMode.name,
+      'mainImageCornerRadius': mainImageCornerRadius,
+      'mainImageBackgroundColor': _colorToHex(mainImageBackgroundColor),
+      'mainImageSource': mainImageSource.name,
+      'mainImagePaddingLeft': mainImagePadding.left,
+      'mainImagePaddingTop': mainImagePadding.top,
+      'mainImagePaddingRight': mainImagePadding.right,
+      'mainImagePaddingBottom': mainImagePadding.bottom,
+      'verticalContentAlignment': verticalContentAlignment.name,
     };
   }
 

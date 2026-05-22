@@ -90,6 +90,7 @@ class NativeAdPlatformView(
         val ctaCornerRadius = (style["ctaCornerRadius"] as? Double)?.toFloat() ?: 4f
         val ctaBold = style["ctaBold"] as? Boolean ?: true
         val ctaPadH = (style["ctaPaddingHorizontal"] as? Double)?.toFloat() ?: 8f
+        val layoutMode = style["layoutMode"] as? String ?: "horizontal"
 
         val titleColor = parseColor(titleColorStr)
         val bodyColor = parseColor(bodyColorStr)
@@ -120,6 +121,223 @@ class NativeAdPlatformView(
                 }
             }
             adView.clipToOutline = true
+        }
+
+        // === Vertical layout branch ===
+        if (layoutMode == "vertical") {
+            // Main image controls (Pangle has only icon, so source field is informational)
+            val mainImageHeightDp = (style["mainImageHeight"] as? Double)?.toFloat() ?: imageHeight.toFloat()
+            val mainImageScaleMode = style["mainImageScaleMode"] as? String ?: "cover"
+            val mainImageCornerRadius = (style["mainImageCornerRadius"] as? Double)?.toFloat() ?: 0f
+            val mainImageBgStr = style["mainImageBackgroundColor"] as? String ?: "#00000000"
+            val mainImagePadL = (style["mainImagePaddingLeft"] as? Double)?.toFloat() ?: 0f
+            val mainImagePadT = (style["mainImagePaddingTop"] as? Double)?.toFloat() ?: 0f
+            val mainImagePadR = (style["mainImagePaddingRight"] as? Double)?.toFloat() ?: 0f
+            val mainImagePadB = (style["mainImagePaddingBottom"] as? Double)?.toFloat() ?: 0f
+            val verticalContentAlignment = style["verticalContentAlignment"] as? String ?: "top"
+
+            adView.orientation = LinearLayout.VERTICAL
+            adView.gravity = when (verticalContentAlignment) {
+                "center" -> android.view.Gravity.CENTER_VERTICAL
+                "bottom" -> android.view.Gravity.BOTTOM
+                else -> android.view.Gravity.TOP
+            }
+            adView.layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+
+            // Main image (full width × mainImageHeight)
+            // Pangle Global Android exposes the real media (large image / video) via
+            // PAGNativeAdData#getMediaView(): View. Use it directly as the main image so it
+            // differs from the small icon. Fall back to icon URL when unavailable.
+            val pangleMediaView: View? = run {
+                val data = nativeAdData ?: return@run null
+                try {
+                    val view = data.javaClass.getMethod("getMediaView").invoke(data) as? View
+                    Log.d(TAG, "[Pangle vertical] PAGNativeAdData.getMediaView() => $view")
+                    view
+                } catch (e: Throwable) {
+                    Log.w(TAG, "[Pangle vertical] getMediaView() failed: ${e.message}")
+                    null
+                }
+            }
+
+            val mainImage: View = pangleMediaView ?: ImageView(context).apply {
+                scaleType = when (mainImageScaleMode) {
+                    "contain" -> ImageView.ScaleType.FIT_CENTER
+                    "fill" -> ImageView.ScaleType.FIT_XY
+                    else -> ImageView.ScaleType.CENTER_CROP
+                }
+                if (!iconUrl.isNullOrEmpty()) {
+                    Thread {
+                        try {
+                            val stream = URL(iconUrl).openStream()
+                            val bitmap = BitmapFactory.decodeStream(stream)
+                            stream.close()
+                            post { setImageBitmap(bitmap) }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to load main image: $iconUrl", e)
+                        }
+                    }.start()
+                }
+            }
+            val mainImageParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (mainImageHeightDp * density).toInt()
+            )
+            mainImageParams.setMargins(
+                (mainImagePadL * density).toInt(),
+                (mainImagePadT * density).toInt(),
+                (mainImagePadR * density).toInt(),
+                (mainImagePadB * density).toInt(),
+            )
+            mainImage.layoutParams = mainImageParams
+            mainImage.setBackgroundColor(parseColor(mainImageBgStr))
+            if (mainImageCornerRadius > 0) {
+                val r = mainImageCornerRadius * density
+                mainImage.outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        outline.setRoundRect(0, 0, view.width, view.height, r)
+                    }
+                }
+                mainImage.clipToOutline = true
+            }
+            adView.addView(mainImage)
+
+            // Icon + Headline row
+            val titleRow = LinearLayout(context)
+            titleRow.orientation = LinearLayout.HORIZONTAL
+            titleRow.gravity = android.view.Gravity.CENTER_VERTICAL
+            val titleRowParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            titleRowParams.topMargin = (textPadV * density).toInt()
+            titleRowParams.leftMargin = (textPadH * density).toInt()
+            titleRowParams.rightMargin = (textPadH * density).toInt()
+            titleRow.layoutParams = titleRowParams
+
+            val smallIcon = ImageView(context)
+            val smallIconSize = (40 * density).toInt()
+            val smallIconParams = LinearLayout.LayoutParams(smallIconSize, smallIconSize)
+            smallIconParams.rightMargin = (8 * density).toInt()
+            smallIcon.layoutParams = smallIconParams
+            smallIcon.scaleType = ImageView.ScaleType.CENTER_CROP
+            if (imageCornerRadius > 0) {
+                val r = imageCornerRadius * density
+                smallIcon.outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        outline.setRoundRect(0, 0, view.width, view.height, r)
+                    }
+                }
+                smallIcon.clipToOutline = true
+            }
+            if (!iconUrl.isNullOrEmpty()) {
+                Thread {
+                    try {
+                        val stream = URL(iconUrl).openStream()
+                        val bitmap = BitmapFactory.decodeStream(stream)
+                        stream.close()
+                        smallIcon.post { smallIcon.setImageBitmap(bitmap) }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to load small icon: $iconUrl", e)
+                    }
+                }.start()
+            }
+            titleRow.addView(smallIcon)
+
+            val vHeadline = TextView(context)
+            vHeadline.setTextSize(TypedValue.COMPLEX_UNIT_SP, titleFontSize)
+            vHeadline.setTextColor(titleColor)
+            val vTitleTypeface = if (titleFontFamily != null) {
+                try { Typeface.create(titleFontFamily, if (titleBold) Typeface.BOLD else Typeface.NORMAL) }
+                catch (e: Exception) { if (titleBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT }
+            } else {
+                if (titleBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            }
+            vHeadline.typeface = vTitleTypeface
+            vHeadline.maxLines = titleMaxLines
+            vHeadline.ellipsize = android.text.TextUtils.TruncateAt.END
+            vHeadline.text = title
+            vHeadline.layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+            titleRow.addView(vHeadline)
+            adView.addView(titleRow)
+
+            // Full-width CTA
+            if (showCallToAction && !callToAction.isNullOrEmpty()) {
+                val vCta = TextView(context)
+                vCta.text = callToAction
+                vCta.setTextSize(TypedValue.COMPLEX_UNIT_SP, ctaFontSize)
+                vCta.setTextColor(parseColor(ctaTextColorStr))
+                vCta.typeface = if (ctaBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                vCta.gravity = android.view.Gravity.CENTER
+                val ctaPadVPx = (8 * density).toInt()
+                vCta.setPadding(
+                    (ctaPadH * density).toInt(), ctaPadVPx,
+                    (ctaPadH * density).toInt(), ctaPadVPx
+                )
+                val vCtaDrawable = android.graphics.drawable.GradientDrawable()
+                vCtaDrawable.setColor(parseColor(ctaBgColorStr))
+                vCtaDrawable.cornerRadius = ctaCornerRadius * density
+                vCta.background = vCtaDrawable
+                val vCtaParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                vCtaParams.topMargin = (textPadV * density).toInt()
+                vCtaParams.leftMargin = (textPadH * density).toInt()
+                vCtaParams.rightMargin = (textPadH * density).toInt()
+                vCtaParams.bottomMargin = (textPadV * density).toInt()
+                vCta.layoutParams = vCtaParams
+                adView.addView(vCta)
+            }
+
+            container.removeAllViews()
+            container.addView(adView)
+
+            // Ad logo at bottom-right (Pangle "广告" badge)
+            try {
+                val adLogoView = nativeAdData?.javaClass?.getMethod("getAdLogoView")
+                    ?.invoke(nativeAdData) as? View
+                if (adLogoView != null) {
+                    val logoParams = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    logoParams.gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
+                    logoParams.rightMargin = (8 * density).toInt()
+                    logoParams.bottomMargin = (8 * density).toInt()
+                    adLogoView.layoutParams = logoParams
+                    container.addView(adLogoView)
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "[Pangle vertical] getAdLogoView failed: ${e.message}")
+            }
+
+            val eventSink = handler.getNativeEventSink()
+            nativeAd.registerViewForInteraction(
+                container,
+                listOf<View>(container),
+                listOf<View>(),
+                null,
+                object : PAGNativeAdInteractionListener {
+                    override fun onAdShowed() {
+                        Log.d(TAG, "Native ad showed")
+                        eventSink?.success(mapOf("listenerId" to listenerId, "event" to "onAdShowed"))
+                    }
+                    override fun onAdClicked() {
+                        Log.d(TAG, "Native ad clicked")
+                        eventSink?.success(mapOf("listenerId" to listenerId, "event" to "onAdClicked"))
+                    }
+                    override fun onAdDismissed() {
+                        Log.d(TAG, "Native ad dismissed")
+                    }
+                }
+            )
+            return
         }
 
         // Icon image

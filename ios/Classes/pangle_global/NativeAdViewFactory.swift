@@ -3,6 +3,9 @@ import Flutter
 import UIKit
 import PAGAdSDK
 
+// Associated object key used to retain the Pangle related view bound to a container.
+private var pangleRelatedViewKey: UInt8 = 0
+
 class NativeAdViewFactory: NSObject, FlutterPlatformViewFactory {
     private weak var handler: PangleAdsHandler?
     
@@ -70,6 +73,7 @@ class NativeAdPlatformView: NSObject, FlutterPlatformView {
         let ctaCornerRadiusVal = (style["ctaCornerRadius"] as? Double) ?? 4.0
         let ctaBold = (style["ctaBold"] as? Bool) ?? true
         let ctaPadH = (style["ctaPaddingHorizontal"] as? Double) ?? 8.0
+        let layoutMode = (style["layoutMode"] as? String) ?? "horizontal"
 
         let titleColor = Self.parseColor(titleColorStr)
         let bodyColor = Self.parseColor(bodyColorStr)
@@ -87,6 +91,167 @@ class NativeAdPlatformView: NSObject, FlutterPlatformView {
         adView.clipsToBounds = true
         adView.layer.cornerRadius = CGFloat(cornerRadius)
         adView.translatesAutoresizingMaskIntoConstraints = false
+
+        // === Vertical layout branch ===
+        if layoutMode == "vertical" {
+            let iconUrlStr = nativeAdData.icon.imageURL ?? ""
+
+            // Main image controls (Pangle has only icon, source field is informational)
+            let mainImageHeight = (style["mainImageHeight"] as? Double) ?? imageHeight
+            let mainImageScaleMode = (style["mainImageScaleMode"] as? String) ?? "cover"
+            let mainImageCornerRadiusVal = (style["mainImageCornerRadius"] as? Double) ?? 0.0
+            let mainImageBgStr = (style["mainImageBackgroundColor"] as? String) ?? "#00000000"
+            let mainImagePadL = (style["mainImagePaddingLeft"] as? Double) ?? 0.0
+            let mainImagePadT = (style["mainImagePaddingTop"] as? Double) ?? 0.0
+            let mainImagePadR = (style["mainImagePaddingRight"] as? Double) ?? 0.0
+            let mainImagePadB = (style["mainImagePaddingBottom"] as? Double) ?? 0.0
+            let verticalContentAlignment = (style["verticalContentAlignment"] as? String) ?? "top"
+
+            // Content wrapper to support vertical alignment
+            let contentWrapper = UIView()
+            contentWrapper.translatesAutoresizingMaskIntoConstraints = false
+            adView.addSubview(contentWrapper)
+            var wrapperConstraints: [NSLayoutConstraint] = [
+                contentWrapper.leadingAnchor.constraint(equalTo: adView.leadingAnchor),
+                contentWrapper.trailingAnchor.constraint(equalTo: adView.trailingAnchor),
+            ]
+            switch verticalContentAlignment {
+            case "center":
+                wrapperConstraints += [
+                    contentWrapper.centerYAnchor.constraint(equalTo: adView.centerYAnchor),
+                    contentWrapper.topAnchor.constraint(greaterThanOrEqualTo: adView.topAnchor),
+                    contentWrapper.bottomAnchor.constraint(lessThanOrEqualTo: adView.bottomAnchor),
+                ]
+            case "bottom":
+                wrapperConstraints += [
+                    contentWrapper.bottomAnchor.constraint(equalTo: adView.bottomAnchor),
+                    contentWrapper.topAnchor.constraint(greaterThanOrEqualTo: adView.topAnchor),
+                ]
+            default:
+                wrapperConstraints += [
+                    contentWrapper.topAnchor.constraint(equalTo: adView.topAnchor),
+                    contentWrapper.bottomAnchor.constraint(lessThanOrEqualTo: adView.bottomAnchor),
+                ]
+            }
+            NSLayoutConstraint.activate(wrapperConstraints)
+
+            // Main image position: use Pangle's PAGMediaView to display the real media
+            // (large image / video) so that the main image differs from the small icon.
+            let pangleRelatedView = PAGLNativeAdRelatedView()
+            pangleRelatedView.refresh(with: nativeAd)
+            // Retain the related view for the lifetime of the container.
+            objc_setAssociatedObject(
+                containerView,
+                &pangleRelatedViewKey,
+                pangleRelatedView,
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
+
+            let mainImageView: UIView = pangleRelatedView.mediaView
+            // mainImageScaleMode is rendered internally by PAGMediaView; kept for API consistency.
+            _ = mainImageScaleMode
+            mainImageView.backgroundColor = Self.parseColor(mainImageBgStr)
+            mainImageView.clipsToBounds = true
+            if mainImageCornerRadiusVal > 0 {
+                mainImageView.layer.cornerRadius = CGFloat(mainImageCornerRadiusVal)
+            }
+            mainImageView.translatesAutoresizingMaskIntoConstraints = false
+            contentWrapper.addSubview(mainImageView)
+
+            // Small icon (40 × 40)
+            let smallIconView = UIImageView()
+            smallIconView.contentMode = .scaleAspectFill
+            smallIconView.clipsToBounds = true
+            if imageCornerRadius > 0 {
+                smallIconView.layer.cornerRadius = CGFloat(imageCornerRadius)
+            }
+            smallIconView.translatesAutoresizingMaskIntoConstraints = false
+            if let url = URL(string: iconUrlStr) {
+                DispatchQueue.global().async {
+                    if let data = try? Data(contentsOf: url) {
+                        DispatchQueue.main.async {
+                            smallIconView.image = UIImage(data: data)
+                        }
+                    }
+                }
+            }
+            contentWrapper.addSubview(smallIconView)
+
+            // Headline
+            let vHeadlineLabel = UILabel()
+            vHeadlineLabel.font = Self.makeFont(size: titleFontSize, bold: titleBold, family: titleFontFamily)
+            vHeadlineLabel.textColor = titleColor
+            vHeadlineLabel.numberOfLines = titleMaxLines
+            vHeadlineLabel.lineBreakMode = .byTruncatingTail
+            vHeadlineLabel.text = title
+            vHeadlineLabel.translatesAutoresizingMaskIntoConstraints = false
+            contentWrapper.addSubview(vHeadlineLabel)
+
+            var vConstraints: [NSLayoutConstraint] = [
+                mainImageView.topAnchor.constraint(equalTo: contentWrapper.topAnchor, constant: CGFloat(mainImagePadT)),
+                mainImageView.leadingAnchor.constraint(equalTo: contentWrapper.leadingAnchor, constant: CGFloat(mainImagePadL)),
+                mainImageView.trailingAnchor.constraint(equalTo: contentWrapper.trailingAnchor, constant: -CGFloat(mainImagePadR)),
+                mainImageView.heightAnchor.constraint(equalToConstant: CGFloat(mainImageHeight)),
+
+                smallIconView.topAnchor.constraint(equalTo: mainImageView.bottomAnchor, constant: CGFloat(mainImagePadB + textPadV)),
+                smallIconView.leadingAnchor.constraint(equalTo: contentWrapper.leadingAnchor, constant: CGFloat(textPadH)),
+                smallIconView.widthAnchor.constraint(equalToConstant: 40),
+                smallIconView.heightAnchor.constraint(equalToConstant: 40),
+
+                vHeadlineLabel.leadingAnchor.constraint(equalTo: smallIconView.trailingAnchor, constant: 8),
+                vHeadlineLabel.trailingAnchor.constraint(equalTo: contentWrapper.trailingAnchor, constant: -CGFloat(textPadH)),
+                vHeadlineLabel.centerYAnchor.constraint(equalTo: smallIconView.centerYAnchor),
+            ]
+
+            if showCallToAction && !callToAction.isEmpty {
+                let ctaTextColor = Self.parseColor(ctaTextColorStr)
+                let ctaBgColor = Self.parseColor(ctaBgColorStr)
+                let vCta = PaddedLabel()
+                vCta.text = callToAction
+                vCta.font = Self.makeFont(size: ctaFontSize, bold: ctaBold, family: nil)
+                vCta.textColor = ctaTextColor
+                vCta.textAlignment = .center
+                vCta.backgroundColor = ctaBgColor
+                vCta.layer.cornerRadius = CGFloat(ctaCornerRadiusVal)
+                vCta.clipsToBounds = true
+                vCta.textInsets = UIEdgeInsets(top: 8, left: CGFloat(ctaPadH), bottom: 8, right: CGFloat(ctaPadH))
+                vCta.translatesAutoresizingMaskIntoConstraints = false
+                contentWrapper.addSubview(vCta)
+
+                vConstraints += [
+                    vCta.topAnchor.constraint(equalTo: smallIconView.bottomAnchor, constant: CGFloat(textPadV)),
+                    vCta.leadingAnchor.constraint(equalTo: contentWrapper.leadingAnchor, constant: CGFloat(textPadH)),
+                    vCta.trailingAnchor.constraint(equalTo: contentWrapper.trailingAnchor, constant: -CGFloat(textPadH)),
+                    vCta.bottomAnchor.constraint(equalTo: contentWrapper.bottomAnchor, constant: -CGFloat(textPadV)),
+                ]
+            } else {
+                vConstraints += [
+                    smallIconView.bottomAnchor.constraint(equalTo: contentWrapper.bottomAnchor, constant: -CGFloat(textPadV)),
+                ]
+            }
+
+            NSLayoutConstraint.activate(vConstraints)
+
+            containerView.addSubview(adView)
+            NSLayoutConstraint.activate([
+                adView.topAnchor.constraint(equalTo: containerView.topAnchor),
+                adView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+                adView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+                adView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            ])
+
+            // Ad logo at bottom-right (Pangle "广告" badge)
+            let adLogoView = pangleRelatedView.logoADImageView
+            adLogoView.translatesAutoresizingMaskIntoConstraints = false
+            containerView.addSubview(adLogoView)
+            NSLayoutConstraint.activate([
+                adLogoView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
+                adLogoView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8),
+            ])
+
+            nativeAd.registerContainer(containerView, withClickableViews: nil)
+            return
+        }
 
         // Icon
         let iconImageView = UIImageView()

@@ -51,6 +51,7 @@ public class NativeAdViewBuilder: NSObject {
         let ctaCornerRadiusVal = (options["ctaCornerRadius"] as? Double) ?? 4.0
         let ctaBold = (options["ctaBold"] as? Bool) ?? true
         let ctaPadH = (options["ctaPaddingHorizontal"] as? Double) ?? 8.0
+        let layoutMode = (options["layoutMode"] as? String) ?? "horizontal"
 
         let titleColor = parseColor(titleColorStr)
         let bodyColor = parseColor(bodyColorStr)
@@ -61,6 +62,153 @@ public class NativeAdViewBuilder: NSObject {
         adView.backgroundColor = bgColor
         adView.clipsToBounds = true
         adView.layer.cornerRadius = CGFloat(cornerRadius)
+
+        // === Vertical layout branch (full-screen native ad) ===
+        if layoutMode == "vertical" {
+            // Main image controls
+            let mainImageHeight = (options["mainImageHeight"] as? Double) ?? imageHeight
+            let mainImageScaleMode = (options["mainImageScaleMode"] as? String) ?? "cover"
+            let mainImageCornerRadiusVal = (options["mainImageCornerRadius"] as? Double) ?? 0.0
+            let mainImageBgStr = (options["mainImageBackgroundColor"] as? String) ?? "#00000000"
+            let mainImageSource = (options["mainImageSource"] as? String) ?? "auto"
+            let mainImagePadL = (options["mainImagePaddingLeft"] as? Double) ?? 0.0
+            let mainImagePadT = (options["mainImagePaddingTop"] as? Double) ?? 0.0
+            let mainImagePadR = (options["mainImagePaddingRight"] as? Double) ?? 0.0
+            let mainImagePadB = (options["mainImagePaddingBottom"] as? Double) ?? 0.0
+            let verticalContentAlignment = (options["verticalContentAlignment"] as? String) ?? "top"
+
+            // Content wrapper to support vertical alignment (top/center/bottom)
+            let contentWrapper = UIView()
+            contentWrapper.translatesAutoresizingMaskIntoConstraints = false
+            adView.addSubview(contentWrapper)
+
+            var wrapperConstraints: [NSLayoutConstraint] = [
+                contentWrapper.leadingAnchor.constraint(equalTo: adView.leadingAnchor),
+                contentWrapper.trailingAnchor.constraint(equalTo: adView.trailingAnchor),
+            ]
+            switch verticalContentAlignment {
+            case "center":
+                wrapperConstraints += [
+                    contentWrapper.centerYAnchor.constraint(equalTo: adView.centerYAnchor),
+                    contentWrapper.topAnchor.constraint(greaterThanOrEqualTo: adView.topAnchor),
+                    contentWrapper.bottomAnchor.constraint(lessThanOrEqualTo: adView.bottomAnchor),
+                ]
+            case "bottom":
+                wrapperConstraints += [
+                    contentWrapper.bottomAnchor.constraint(equalTo: adView.bottomAnchor),
+                    contentWrapper.topAnchor.constraint(greaterThanOrEqualTo: adView.topAnchor),
+                ]
+            default:
+                wrapperConstraints += [
+                    contentWrapper.topAnchor.constraint(equalTo: adView.topAnchor),
+                    contentWrapper.bottomAnchor.constraint(lessThanOrEqualTo: adView.bottomAnchor),
+                ]
+            }
+            NSLayoutConstraint.activate(wrapperConstraints)
+
+            // Main image (full width × mainImageHeight)
+            let mainImageView = UIImageView()
+            switch mainImageScaleMode {
+            case "contain": mainImageView.contentMode = .scaleAspectFit
+            case "fill":    mainImageView.contentMode = .scaleToFill
+            default:        mainImageView.contentMode = .scaleAspectFill
+            }
+            mainImageView.backgroundColor = parseColor(mainImageBgStr)
+            mainImageView.clipsToBounds = true
+            if mainImageCornerRadiusVal > 0 {
+                mainImageView.layer.cornerRadius = CGFloat(mainImageCornerRadiusVal)
+            }
+            mainImageView.translatesAutoresizingMaskIntoConstraints = false
+            contentWrapper.addSubview(mainImageView)
+            adView.iconView = mainImageView
+
+            // Image source: auto / media / icon
+            switch mainImageSource {
+            case "media":
+                mainImageView.image = nativeAd.images?.first?.image
+            case "icon":
+                mainImageView.image = nativeAd.icon?.image
+            default:
+                if let firstImage = nativeAd.images?.first?.image {
+                    mainImageView.image = firstImage
+                } else if let icon = nativeAd.icon?.image {
+                    mainImageView.image = icon
+                }
+            }
+
+            // Small icon (40 × 40)
+            let smallIconView = UIImageView()
+            smallIconView.contentMode = .scaleAspectFill
+            smallIconView.clipsToBounds = true
+            if imageCornerRadius > 0 {
+                smallIconView.layer.cornerRadius = CGFloat(imageCornerRadius)
+            }
+            smallIconView.translatesAutoresizingMaskIntoConstraints = false
+            if let icon = nativeAd.icon?.image {
+                smallIconView.image = icon
+            }
+            contentWrapper.addSubview(smallIconView)
+
+            // Headline
+            let vHeadlineLabel = UILabel()
+            vHeadlineLabel.font = makeFont(size: titleFontSize, bold: titleBold, family: titleFontFamily)
+            vHeadlineLabel.textColor = titleColor
+            vHeadlineLabel.numberOfLines = titleMaxLines
+            vHeadlineLabel.lineBreakMode = .byTruncatingTail
+            vHeadlineLabel.text = nativeAd.headline
+            vHeadlineLabel.translatesAutoresizingMaskIntoConstraints = false
+            contentWrapper.addSubview(vHeadlineLabel)
+            adView.headlineView = vHeadlineLabel
+
+            var vConstraints: [NSLayoutConstraint] = [
+                mainImageView.topAnchor.constraint(equalTo: contentWrapper.topAnchor, constant: CGFloat(mainImagePadT)),
+                mainImageView.leadingAnchor.constraint(equalTo: contentWrapper.leadingAnchor, constant: CGFloat(mainImagePadL)),
+                mainImageView.trailingAnchor.constraint(equalTo: contentWrapper.trailingAnchor, constant: -CGFloat(mainImagePadR)),
+                mainImageView.heightAnchor.constraint(equalToConstant: CGFloat(mainImageHeight)),
+
+                smallIconView.topAnchor.constraint(equalTo: mainImageView.bottomAnchor, constant: CGFloat(mainImagePadB + textPadV)),
+                smallIconView.leadingAnchor.constraint(equalTo: contentWrapper.leadingAnchor, constant: CGFloat(textPadH)),
+                smallIconView.widthAnchor.constraint(equalToConstant: 40),
+                smallIconView.heightAnchor.constraint(equalToConstant: 40),
+
+                vHeadlineLabel.leadingAnchor.constraint(equalTo: smallIconView.trailingAnchor, constant: 8),
+                vHeadlineLabel.trailingAnchor.constraint(equalTo: contentWrapper.trailingAnchor, constant: -CGFloat(textPadH)),
+                vHeadlineLabel.centerYAnchor.constraint(equalTo: smallIconView.centerYAnchor),
+            ]
+
+            // Full-width CTA
+            if showCallToAction, let ctaText = nativeAd.callToAction {
+                let ctaTextColor = parseColor(ctaTextColorStr)
+                let ctaBgColor = parseColor(ctaBgColorStr)
+                let vCta = PaddedLabel()
+                vCta.text = ctaText
+                vCta.font = makeFont(size: ctaFontSize, bold: ctaBold, family: nil)
+                vCta.textColor = ctaTextColor
+                vCta.textAlignment = .center
+                vCta.backgroundColor = ctaBgColor
+                vCta.layer.cornerRadius = CGFloat(ctaCornerRadiusVal)
+                vCta.clipsToBounds = true
+                vCta.textInsets = UIEdgeInsets(top: 8, left: CGFloat(ctaPadH), bottom: 8, right: CGFloat(ctaPadH))
+                vCta.translatesAutoresizingMaskIntoConstraints = false
+                contentWrapper.addSubview(vCta)
+                adView.callToActionView = vCta
+
+                vConstraints += [
+                    vCta.topAnchor.constraint(equalTo: smallIconView.bottomAnchor, constant: CGFloat(textPadV)),
+                    vCta.leadingAnchor.constraint(equalTo: contentWrapper.leadingAnchor, constant: CGFloat(textPadH)),
+                    vCta.trailingAnchor.constraint(equalTo: contentWrapper.trailingAnchor, constant: -CGFloat(textPadH)),
+                    vCta.bottomAnchor.constraint(equalTo: contentWrapper.bottomAnchor, constant: -CGFloat(textPadV)),
+                ]
+            } else {
+                vConstraints += [
+                    smallIconView.bottomAnchor.constraint(equalTo: contentWrapper.bottomAnchor, constant: -CGFloat(textPadV)),
+                ]
+            }
+
+            NSLayoutConstraint.activate(vConstraints)
+            adView.nativeAd = nativeAd
+            return adView
+        }
 
         // Thumbnail
         let iconImageView = UIImageView()

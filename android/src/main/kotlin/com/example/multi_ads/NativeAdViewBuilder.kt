@@ -62,6 +62,7 @@ class NativeAdViewBuilder(private val context: Context) {
         val ctaCornerRadius = (options["ctaCornerRadius"] as? Double)?.toFloat() ?: 4f
         val ctaBold = options["ctaBold"] as? Boolean ?: true
         val ctaPadH = (options["ctaPaddingHorizontal"] as? Double)?.toFloat() ?: 8f
+        val layoutMode = options["layoutMode"] as? String ?: "horizontal"
 
         val titleColor = parseColor(titleColorStr)
         val bodyColor = parseColor(bodyColorStr)
@@ -84,6 +85,159 @@ class NativeAdViewBuilder(private val context: Context) {
                 }
             }
             adView.clipToOutline = true
+        }
+
+        // === Vertical layout branch (full-screen native ad) ===
+        if (layoutMode == "vertical") {
+            // Main image controls
+            val mainImageHeightDp = (options["mainImageHeight"] as? Double)?.toFloat() ?: imageHeight.toFloat()
+            val mainImageScaleMode = options["mainImageScaleMode"] as? String ?: "cover"
+            val mainImageCornerRadius = (options["mainImageCornerRadius"] as? Double)?.toFloat() ?: 0f
+            val mainImageBgStr = options["mainImageBackgroundColor"] as? String ?: "#00000000"
+            val mainImageSource = options["mainImageSource"] as? String ?: "auto"
+            val mainImagePadL = (options["mainImagePaddingLeft"] as? Double)?.toFloat() ?: 0f
+            val mainImagePadT = (options["mainImagePaddingTop"] as? Double)?.toFloat() ?: 0f
+            val mainImagePadR = (options["mainImagePaddingRight"] as? Double)?.toFloat() ?: 0f
+            val mainImagePadB = (options["mainImagePaddingBottom"] as? Double)?.toFloat() ?: 0f
+            val verticalContentAlignment = options["verticalContentAlignment"] as? String ?: "top"
+
+            val verticalContainer = LinearLayout(context)
+            verticalContainer.orientation = LinearLayout.VERTICAL
+            verticalContainer.gravity = when (verticalContentAlignment) {
+                "center" -> android.view.Gravity.CENTER_VERTICAL
+                "bottom" -> android.view.Gravity.BOTTOM
+                else -> android.view.Gravity.TOP
+            }
+            verticalContainer.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+            adView.addView(verticalContainer)
+
+            // Main image (full width × mainImageHeight)
+            val mainImage = ImageView(context)
+            val mainImageParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (mainImageHeightDp * density).toInt()
+            )
+            mainImageParams.setMargins(
+                (mainImagePadL * density).toInt(),
+                (mainImagePadT * density).toInt(),
+                (mainImagePadR * density).toInt(),
+                (mainImagePadB * density).toInt(),
+            )
+            mainImage.layoutParams = mainImageParams
+            mainImage.scaleType = when (mainImageScaleMode) {
+                "contain" -> ImageView.ScaleType.FIT_CENTER
+                "fill" -> ImageView.ScaleType.FIT_XY
+                else -> ImageView.ScaleType.CENTER_CROP
+            }
+            mainImage.setBackgroundColor(parseColor(mainImageBgStr))
+            if (mainImageCornerRadius > 0) {
+                val r = mainImageCornerRadius * density
+                mainImage.outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        outline.setRoundRect(0, 0, view.width, view.height, r)
+                    }
+                }
+                mainImage.clipToOutline = true
+            }
+            // Image source: auto = media first then icon; media = media only; icon = icon only
+            val mainDrawable = when (mainImageSource) {
+                "media" -> nativeAd.images?.firstOrNull()?.drawable
+                "icon" -> nativeAd.icon?.drawable
+                else -> nativeAd.images?.firstOrNull()?.drawable ?: nativeAd.icon?.drawable
+            }
+            mainDrawable?.let { mainImage.setImageDrawable(it) }
+            verticalContainer.addView(mainImage)
+            adView.iconView = mainImage
+
+            // Icon + Headline row
+            val titleRow = LinearLayout(context)
+            titleRow.orientation = LinearLayout.HORIZONTAL
+            titleRow.gravity = android.view.Gravity.CENTER_VERTICAL
+            val titleRowParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            titleRowParams.topMargin = (textPadV * density).toInt()
+            titleRowParams.leftMargin = (textPadH * density).toInt()
+            titleRowParams.rightMargin = (textPadH * density).toInt()
+            titleRow.layoutParams = titleRowParams
+
+            // Small icon (40dp)
+            val smallIcon = ImageView(context)
+            val smallIconSize = (40 * density).toInt()
+            val smallIconParams = LinearLayout.LayoutParams(smallIconSize, smallIconSize)
+            smallIconParams.rightMargin = (8 * density).toInt()
+            smallIcon.layoutParams = smallIconParams
+            smallIcon.scaleType = ImageView.ScaleType.CENTER_CROP
+            if (imageCornerRadius > 0) {
+                val r = imageCornerRadius * density
+                smallIcon.outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        outline.setRoundRect(0, 0, view.width, view.height, r)
+                    }
+                }
+                smallIcon.clipToOutline = true
+            }
+            nativeAd.icon?.let { smallIcon.setImageDrawable(it.drawable) }
+            titleRow.addView(smallIcon)
+
+            // Headline
+            val vHeadline = TextView(context)
+            vHeadline.setTextSize(TypedValue.COMPLEX_UNIT_SP, titleFontSize)
+            vHeadline.setTextColor(titleColor)
+            val vTitleTypeface = if (titleFontFamily != null) {
+                try { Typeface.create(titleFontFamily, if (titleBold) Typeface.BOLD else Typeface.NORMAL) }
+                catch (e: Exception) { if (titleBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT }
+            } else {
+                if (titleBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            }
+            vHeadline.typeface = vTitleTypeface
+            vHeadline.maxLines = titleMaxLines
+            vHeadline.ellipsize = android.text.TextUtils.TruncateAt.END
+            vHeadline.text = nativeAd.headline
+            vHeadline.layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+            titleRow.addView(vHeadline)
+            adView.headlineView = vHeadline
+
+            verticalContainer.addView(titleRow)
+
+            // Full-width CTA button
+            if (showCallToAction && nativeAd.callToAction != null) {
+                val vCta = TextView(context)
+                vCta.text = nativeAd.callToAction
+                vCta.setTextSize(TypedValue.COMPLEX_UNIT_SP, ctaFontSize)
+                vCta.setTextColor(parseColor(ctaTextColorStr))
+                vCta.typeface = if (ctaBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                vCta.gravity = android.view.Gravity.CENTER
+                val ctaPadVPx = (8 * density).toInt()
+                vCta.setPadding(
+                    (ctaPadH * density).toInt(), ctaPadVPx,
+                    (ctaPadH * density).toInt(), ctaPadVPx
+                )
+                val vCtaDrawable = android.graphics.drawable.GradientDrawable()
+                vCtaDrawable.setColor(parseColor(ctaBgColorStr))
+                vCtaDrawable.cornerRadius = ctaCornerRadius * density
+                vCta.background = vCtaDrawable
+                val vCtaParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                vCtaParams.topMargin = (textPadV * density).toInt()
+                vCtaParams.leftMargin = (textPadH * density).toInt()
+                vCtaParams.rightMargin = (textPadH * density).toInt()
+                vCtaParams.bottomMargin = (textPadV * density).toInt()
+                vCta.layoutParams = vCtaParams
+                verticalContainer.addView(vCta)
+                adView.callToActionView = vCta
+            }
+
+            adView.setNativeAd(nativeAd)
+            return adView
         }
 
         // Horizontal container
