@@ -106,6 +106,14 @@ class PangleAdsHandler(
         return nativeEventSink
     }
 
+    fun sendNativeSwipe(listenerId: String, direction: Int) {
+        nativeEventSink?.success(mapOf(
+            "listenerId" to listenerId,
+            "event" to "onAdSwipe",
+            "direction" to direction
+        ))
+    }
+
     private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "initialize" -> {

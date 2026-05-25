@@ -48,6 +48,16 @@ public class VungleAdsHandler: NSObject {
             manager.updateEventSink(sink)
         }
     }
+
+    func sendNativeSwipe(listenerId: String, direction: Int) {
+        DispatchQueue.main.async {
+            self.nativeEventSink?([
+                "event": "onAdSwipe",
+                "listenerId": listenerId,
+                "direction": direction
+            ])
+        }
+    }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {

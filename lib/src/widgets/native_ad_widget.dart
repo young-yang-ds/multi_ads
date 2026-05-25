@@ -49,6 +49,10 @@ class NativeAdWidget extends StatefulWidget {
   /// Called when the ad is clicked
   final VoidCallback? onAdClicked;
 
+  /// Called when a vertical swipe is detected inside a native platform view.
+  /// Direction is `1` for next page and `-1` for previous page.
+  final ValueChanged<int>? onVerticalSwipe;
+
   /// Whether to keep the widget alive when scrolled off-screen in a list.
   /// Defaults to `true` to avoid expensive ad reloads.
   /// Set to `false` if you want the ad to be disposed when not visible.
@@ -65,6 +69,7 @@ class NativeAdWidget extends StatefulWidget {
     this.onAdLoaded,
     this.onAdFailed,
     this.onAdClicked,
+    this.onVerticalSwipe,
     this.keepAlive = true,
   });
 
@@ -150,7 +155,8 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
       _googleNativeAd = NativeAd(
         adUnitId: widget.adUnitId,
         request: const AdRequest(),
-        nativeTemplateStyle: widget.nativeTemplateStyle ??
+        nativeTemplateStyle:
+            widget.nativeTemplateStyle ??
             NativeTemplateStyle(templateType: widget.templateType),
         listener: _googleAdListener,
       )..load();
@@ -158,38 +164,34 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
   }
 
   NativeAdListener get _googleAdListener => NativeAdListener(
-        onAdLoaded: (ad) {
-          if (mounted) {
-            LogUtils.log('Native ad loaded', tag: 'google ads');
-            setState(() => _isAdLoaded = true);
-            widget.onAdLoaded?.call();
-          }
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          _googleNativeAd = null;
-          LogUtils.log(
-            'Native ad load failed: ${error.code} - ${error.message}',
-            tag: 'google ads',
-          );
-          if (mounted) {
-            widget.onAdFailed?.call(
-              AdError(
-                code: error.code,
-                message: error.message,
-                platform: 'google',
-              ),
-            );
-          }
-        },
-        onAdClicked: (ad) {
-          LogUtils.log('Native ad clicked', tag: 'google ads');
-          widget.onAdClicked?.call();
-        },
-        onAdImpression: (ad) {
-          LogUtils.log('Native ad impression', tag: 'google ads');
-        },
+    onAdLoaded: (ad) {
+      if (mounted) {
+        LogUtils.log('Native ad loaded', tag: 'google ads');
+        setState(() => _isAdLoaded = true);
+        widget.onAdLoaded?.call();
+      }
+    },
+    onAdFailedToLoad: (ad, error) {
+      ad.dispose();
+      _googleNativeAd = null;
+      LogUtils.log(
+        'Native ad load failed: ${error.code} - ${error.message}',
+        tag: 'google ads',
       );
+      if (mounted) {
+        widget.onAdFailed?.call(
+          AdError(code: error.code, message: error.message, platform: 'google'),
+        );
+      }
+    },
+    onAdClicked: (ad) {
+      LogUtils.log('Native ad clicked', tag: 'google ads');
+      widget.onAdClicked?.call();
+    },
+    onAdImpression: (ad) {
+      LogUtils.log('Native ad impression', tag: 'google ads');
+    },
+  );
 
   void _disposeGoogleAd() {
     _googleNativeAd?.dispose();
@@ -206,8 +208,10 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
       return widget.placeholder ?? const SizedBox.shrink();
     }
 
-    final adWidget =
-        AdWidget(key: ObjectKey(_googleNativeAd!), ad: _googleNativeAd!);
+    final adWidget = AdWidget(
+      key: ObjectKey(_googleNativeAd!),
+      ad: _googleNativeAd!,
+    );
     final style = widget.style;
 
     if (style != null) {
@@ -226,9 +230,17 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
 
     final constraints = widget.templateType == TemplateType.small
         ? const BoxConstraints(
-            minWidth: 320, minHeight: 90, maxWidth: 400, maxHeight: 200)
+            minWidth: 320,
+            minHeight: 90,
+            maxWidth: 400,
+            maxHeight: 200,
+          )
         : const BoxConstraints(
-            minWidth: 320, minHeight: 320, maxWidth: 400, maxHeight: 400);
+            minWidth: 320,
+            minHeight: 320,
+            maxWidth: 400,
+            maxHeight: 400,
+          );
 
     return Container(
       color: Colors.white,
@@ -271,6 +283,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
         }
       },
       onAdClicked: () => widget.onAdClicked?.call(),
+      onAdSwipe: widget.onVerticalSwipe,
     );
   }
 
@@ -327,6 +340,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
         }
       },
       onAdClicked: () => widget.onAdClicked?.call(),
+      onAdSwipe: widget.onVerticalSwipe,
     );
   }
 

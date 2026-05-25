@@ -50,6 +50,16 @@ public class PangleAdsHandler: NSObject {
             manager.updateEventSink(sink)
         }
     }
+
+    func sendNativeSwipe(listenerId: String, direction: Int) {
+        DispatchQueue.main.async {
+            self.nativeEventSink?([
+                "listenerId": listenerId,
+                "event": "onAdSwipe",
+                "direction": direction
+            ])
+        }
+    }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {

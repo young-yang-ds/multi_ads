@@ -13,10 +13,12 @@ import 'pangle_method_channel.dart';
 /// Supports multiple simultaneous instances. Each instance has its own
 /// [listenerId] to distinguish events coming through the shared EventChannel.
 class PangleNativeAd {
-  static const MethodChannel _channel =
-      MethodChannel('multi_ads/pangle_global');
-  static const EventChannel _eventChannel =
-      EventChannel('multi_ads/pangle_global/native_events');
+  static const MethodChannel _channel = MethodChannel(
+    'multi_ads/pangle_global',
+  );
+  static const EventChannel _eventChannel = EventChannel(
+    'multi_ads/pangle_global/native_events',
+  );
 
   // ── Global event dispatcher ─────────────────────────────────────────────
   static bool _globalListenerSetup = false;
@@ -27,29 +29,33 @@ class PangleNativeAd {
     if (_globalListenerSetup) return;
     _globalListenerSetup = true;
 
-    _eventChannel.receiveBroadcastStream().listen((event) {
-      try {
-        final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
-        final String listenerId = data['listenerId'] as String? ?? '';
-        final String eventType = data['event'] as String? ?? '';
-        pangleLog(
-            '[PangleNativeAd] Event received: $eventType (listenerId=$listenerId)');
-
-        final instance = _instances[listenerId];
-        if (instance == null) {
-          LogUtils.log(
-            'Event for unknown listenerId=$listenerId dropped ($eventType)',
-            tag: 'PangleNativeAd',
+    _eventChannel.receiveBroadcastStream().listen(
+      (event) {
+        try {
+          final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
+          final String listenerId = data['listenerId'] as String? ?? '';
+          final String eventType = data['event'] as String? ?? '';
+          pangleLog(
+            '[PangleNativeAd] Event received: $eventType (listenerId=$listenerId)',
           );
-          return;
+
+          final instance = _instances[listenerId];
+          if (instance == null) {
+            LogUtils.log(
+              'Event for unknown listenerId=$listenerId dropped ($eventType)',
+              tag: 'PangleNativeAd',
+            );
+            return;
+          }
+          instance._handleEvent(eventType, data);
+        } catch (e) {
+          LogUtils.log('Event handling error: $e', tag: 'PangleNativeAd');
         }
-        instance._handleEvent(eventType, data);
-      } catch (e) {
-        LogUtils.log('Event handling error: $e', tag: 'PangleNativeAd');
-      }
-    }, onError: (error) {
-      LogUtils.log('Event stream error: $error', tag: 'PangleNativeAd');
-    });
+      },
+      onError: (error) {
+        LogUtils.log('Event stream error: $error', tag: 'PangleNativeAd');
+      },
+    );
   }
 
   // ── Instance state ──────────────────────────────────────────────────────
@@ -64,12 +70,14 @@ class PangleNativeAd {
   Function(PangleAdError error)? _onAdLoadFailed;
   Function()? _onAdClicked;
   Function()? _onAdShowed;
+  ValueChanged<int>? _onAdSwipe;
 
   PangleNativeAd._internal(this.listenerId);
 
   /// Create a new native ad instance.
   factory PangleNativeAd.create() {
-    final id = 'pangle_native_${DateTime.now().microsecondsSinceEpoch}_${_idCounter++}';
+    final id =
+        'pangle_native_${DateTime.now().microsecondsSinceEpoch}_${_idCounter++}';
     final inst = PangleNativeAd._internal(id);
     _instances[id] = inst;
     _setupGlobalListener();
@@ -88,7 +96,8 @@ class PangleNativeAd {
         _isLoading = false;
         _isLoaded = false;
         final error = PangleAdError.fromJson(
-            Map<String, dynamic>.from(data['error'] ?? {}));
+          Map<String, dynamic>.from(data['error'] ?? {}),
+        );
         LogUtils.log(
           'Ad load failed ($listenerId): ${error.code} - ${error.message}',
           tag: 'PangleNativeAd',
@@ -103,6 +112,16 @@ class PangleNativeAd {
         LogUtils.log('Ad showed ($listenerId)', tag: 'PangleNativeAd');
         _onAdShowed?.call();
         break;
+      case 'onAdSwipe':
+        final direction = data['direction'];
+        if (direction is int && direction != 0) {
+          LogUtils.log(
+            'Ad vertical swipe ($listenerId): $direction',
+            tag: 'PangleNativeAd',
+          );
+          _onAdSwipe?.call(direction);
+        }
+        break;
     }
   }
 
@@ -114,6 +133,7 @@ class PangleNativeAd {
     Function(PangleAdError error)? onAdLoadFailed,
     Function()? onAdClicked,
     Function()? onAdShowed,
+    ValueChanged<int>? onAdSwipe,
   }) async {
     if (_isLoading) return false;
 
@@ -125,6 +145,7 @@ class PangleNativeAd {
     _onAdLoadFailed = onAdLoadFailed;
     _onAdClicked = onAdClicked;
     _onAdShowed = onAdShowed;
+    _onAdSwipe = onAdSwipe;
 
     LogUtils.log(
       'Loading ad ($listenerId) slotId=$slotId',
@@ -172,15 +193,15 @@ class PangleNativeAd {
         },
         onCreatePlatformView: (params) {
           return PlatformViewsService.initSurfaceAndroidView(
-            id: params.id,
-            viewType: 'multi_ads/pangle_global/native',
-            layoutDirection: TextDirection.ltr,
-            creationParams: creationParams,
-            creationParamsCodec: const StandardMessageCodec(),
-            onFocus: () {
-              params.onFocusChanged(true);
-            },
-          )
+              id: params.id,
+              viewType: 'multi_ads/pangle_global/native',
+              layoutDirection: TextDirection.ltr,
+              creationParams: creationParams,
+              creationParamsCodec: const StandardMessageCodec(),
+              onFocus: () {
+                params.onFocusChanged(true);
+              },
+            )
             ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
             ..create();
         },
@@ -226,6 +247,7 @@ class PangleNativeAd {
     _onAdLoadFailed = null;
     _onAdClicked = null;
     _onAdShowed = null;
+    _onAdSwipe = null;
     _instances.remove(listenerId);
   }
 
@@ -250,6 +272,7 @@ class PangleNativeAd {
     Function(PangleAdError error)? onAdLoadFailed,
     Function()? onAdClicked,
     Function()? onAdShowed,
+    ValueChanged<int>? onAdSwipe,
   }) {
     return _ensureDefault().loadAd(
       slotId,
@@ -258,6 +281,7 @@ class PangleNativeAd {
       onAdLoadFailed: onAdLoadFailed,
       onAdClicked: onAdClicked,
       onAdShowed: onAdShowed,
+      onAdSwipe: onAdSwipe,
     );
   }
 

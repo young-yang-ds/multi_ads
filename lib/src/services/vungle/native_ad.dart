@@ -18,8 +18,9 @@ import 'vungle_method_channel.dart';
 /// backwards compatibility and operates on a default singleton instance.
 class VungleNativeAd {
   static const MethodChannel _channel = MethodChannel('multi_ads/vungle');
-  static const EventChannel _eventChannel =
-      EventChannel('multi_ads/vungle/native_events');
+  static const EventChannel _eventChannel = EventChannel(
+    'multi_ads/vungle/native_events',
+  );
 
   // ── Global event dispatcher ────────────────────────────────────────────
 
@@ -31,22 +32,25 @@ class VungleNativeAd {
     if (_globalListenerSetup) return;
     _globalListenerSetup = true;
 
-    _eventChannel.receiveBroadcastStream().listen((event) {
-      try {
-        final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
-        final String eventType = data['event'] as String? ?? '';
-        final String listenerId = data['listenerId'] as String? ?? '';
+    _eventChannel.receiveBroadcastStream().listen(
+      (event) {
+        try {
+          final Map<dynamic, dynamic> data = event as Map<dynamic, dynamic>;
+          final String eventType = data['event'] as String? ?? '';
+          final String listenerId = data['listenerId'] as String? ?? '';
 
-        final instance = _instances[listenerId];
-        if (instance == null) return;
+          final instance = _instances[listenerId];
+          if (instance == null) return;
 
-        instance._handleEvent(eventType, data);
-      } catch (e) {
-        LogUtils.log('Event handling error: $e', tag: 'VungleNativeAd');
-      }
-    }, onError: (error) {
-      LogUtils.log('Event stream error: $error', tag: 'VungleNativeAd');
-    });
+          instance._handleEvent(eventType, data);
+        } catch (e) {
+          LogUtils.log('Event handling error: $e', tag: 'VungleNativeAd');
+        }
+      },
+      onError: (error) {
+        LogUtils.log('Event stream error: $error', tag: 'VungleNativeAd');
+      },
+    );
   }
 
   // ── Instance ───────────────────────────────────────────────────────────
@@ -61,6 +65,7 @@ class VungleNativeAd {
   Function(VungleAdError error)? _onAdLoadFailed;
   Function()? _onAdClicked;
   Function()? _onAdImpression;
+  ValueChanged<int>? _onAdSwipe;
 
   VungleNativeAd._internal(this.listenerId);
 
@@ -101,6 +106,12 @@ class VungleNativeAd {
       case 'onAdImpression':
         _onAdImpression?.call();
         break;
+      case 'onAdSwipe':
+        final direction = data['direction'];
+        if (direction is int && direction != 0) {
+          _onAdSwipe?.call(direction);
+        }
+        break;
     }
   }
 
@@ -112,6 +123,7 @@ class VungleNativeAd {
     Function(VungleAdError error)? onAdLoadFailed,
     Function()? onAdClicked,
     Function()? onAdImpression,
+    ValueChanged<int>? onAdSwipe,
   }) async {
     if (_isLoading) return false;
     if (_isLoaded) return true;
@@ -123,11 +135,15 @@ class VungleNativeAd {
     _onAdLoadFailed = onAdLoadFailed;
     _onAdClicked = onAdClicked;
     _onAdImpression = onAdImpression;
+    _onAdSwipe = onAdSwipe;
 
     vungleLog(
-        '[VungleNativeAd][$listenerId] Loading ad for placement: $placementId');
-    LogUtils.log('Loading [$listenerId] placement: $placementId',
-        tag: 'VungleNativeAd');
+      '[VungleNativeAd][$listenerId] Loading ad for placement: $placementId',
+    );
+    LogUtils.log(
+      'Loading [$listenerId] placement: $placementId',
+      tag: 'VungleNativeAd',
+    );
 
     try {
       final result = await _channel.invokeMethod<bool>('loadNativeAd', {
@@ -171,15 +187,15 @@ class VungleNativeAd {
         },
         onCreatePlatformView: (params) {
           return PlatformViewsService.initSurfaceAndroidView(
-            id: params.id,
-            viewType: 'multi_ads/vungle/native',
-            layoutDirection: TextDirection.ltr,
-            creationParams: creationParams,
-            creationParamsCodec: const StandardMessageCodec(),
-            onFocus: () {
-              params.onFocusChanged(true);
-            },
-          )
+              id: params.id,
+              viewType: 'multi_ads/vungle/native',
+              layoutDirection: TextDirection.ltr,
+              creationParams: creationParams,
+              creationParamsCodec: const StandardMessageCodec(),
+              onFocus: () {
+                params.onFocusChanged(true);
+              },
+            )
             ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
             ..create();
         },
@@ -225,6 +241,7 @@ class VungleNativeAd {
     _onAdLoadFailed = null;
     _onAdClicked = null;
     _onAdImpression = null;
+    _onAdSwipe = null;
     _instances.remove(listenerId);
   }
 
@@ -246,6 +263,7 @@ class VungleNativeAd {
     Function(VungleAdError error)? onAdLoadFailed,
     Function()? onAdClicked,
     Function()? onAdImpression,
+    ValueChanged<int>? onAdSwipe,
   }) {
     // Dispose any stale instance so the same slot can be reloaded.
     final existing = _defaultInstance;
@@ -261,6 +279,7 @@ class VungleNativeAd {
       onAdLoadFailed: onAdLoadFailed,
       onAdClicked: onAdClicked,
       onAdImpression: onAdImpression,
+      onAdSwipe: onAdSwipe,
     );
   }
 

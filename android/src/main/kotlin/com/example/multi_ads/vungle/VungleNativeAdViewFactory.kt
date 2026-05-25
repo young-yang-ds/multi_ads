@@ -7,6 +7,7 @@ import android.graphics.Outline
 import android.graphics.Typeface
 import android.util.Log
 import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
@@ -19,6 +20,7 @@ import io.flutter.plugin.platform.PlatformViewFactory
 import com.vungle.ads.NativeAd
 import com.vungle.ads.internal.ui.view.MediaView
 import java.net.URL
+import kotlin.math.abs
 
 class VungleNativeAdViewFactory(
     private val handler: VungleAdsHandler
@@ -34,17 +36,25 @@ class VungleNativeAdViewFactory(
 class VungleNativeAdPlatformView(
     private val context: Context,
     creationParams: Map<String, Any>?,
-    handler: VungleAdsHandler
+    private val handler: VungleAdsHandler
 ) : PlatformView {
 
     companion object {
         const val TAG = "VungleNativeAdView"
     }
 
-    private val container: FrameLayout = FrameLayout(context)
+    private val listenerId: String = creationParams?.get("listenerId") as? String ?: ""
+    private val container: SwipeFrameLayout = SwipeFrameLayout(context).apply {
+        onVerticalSwipe = { direction ->
+            this@VungleNativeAdPlatformView.handler.getNativeEventSink()?.success(mapOf(
+                "event" to "onAdSwipe",
+                "listenerId" to listenerId,
+                "direction" to direction
+            ))
+        }
+    }
 
     init {
-        val listenerId = creationParams?.get("listenerId") as? String ?: ""
         @Suppress("UNCHECKED_CAST")
         val style = creationParams?.get("style") as? Map<String, Any> ?: emptyMap()
         val nativeAd = handler.getNativeAd(listenerId)
@@ -483,5 +493,38 @@ class VungleNativeAdPlatformView(
 
     override fun dispose() {
         container.removeAllViews()
+    }
+}
+
+private class SwipeFrameLayout(context: Context) : FrameLayout(context) {
+    var onVerticalSwipe: ((Int) -> Unit)? = null
+
+    private val threshold = 24f * context.resources.displayMetrics.density
+    private var startX = 0f
+    private var startY = 0f
+    private var fired = false
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                startX = event.rawX
+                startY = event.rawY
+                fired = false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (!fired) {
+                    val dx = event.rawX - startX
+                    val dy = event.rawY - startY
+                    if (abs(dy) >= threshold && abs(dy) > abs(dx) * 1.1f) {
+                        fired = true
+                        onVerticalSwipe?.invoke(if (dy < 0) 1 else -1)
+                    }
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                fired = false
+            }
+        }
+        return super.dispatchTouchEvent(event)
     }
 }

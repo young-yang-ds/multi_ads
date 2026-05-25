@@ -27,14 +27,12 @@ class NativeUtils {
     Function? onAdLoadedRefresh,
     Function(AdError error)? onAdFailedToLoadHandle,
     Function? onAdClickedHandle,
+    ValueChanged<int>? onAdSwipeHandle,
   }) {
     _currentAdPlatform = adPlatform;
     _isAdLoaded = false;
 
-    LogUtils.log(
-      'Native ad load, adPlatform: $adPlatform',
-      tag: 'native',
-    );
+    LogUtils.log('Native ad load, adPlatform: $adPlatform', tag: 'native');
 
     if (adPlatform == AdPlatform.google) {
       GoogleNativeAd.load(
@@ -68,14 +66,16 @@ class NativeUtils {
           _isAdLoaded = false;
           onAdFailedToLoadHandle?.call(
             AdError(
-                code: error.code,
-                message: error.message,
-                platform: 'pangleGlobal'),
+              code: error.code,
+              message: error.message,
+              platform: 'pangleGlobal',
+            ),
           );
         },
         onAdClicked: () {
           onAdClickedHandle?.call();
         },
+        onAdSwipe: onAdSwipeHandle,
       );
     } else if (adPlatform == AdPlatform.vungle) {
       VungleNativeAd.load(
@@ -89,14 +89,16 @@ class NativeUtils {
           _isAdLoaded = false;
           onAdFailedToLoadHandle?.call(
             AdError(
-                code: error.code,
-                message: error.message,
-                platform: 'vungle'),
+              code: error.code,
+              message: error.message,
+              platform: 'vungle',
+            ),
           );
         },
         onAdClicked: () {
           onAdClickedHandle?.call();
         },
+        onAdSwipe: onAdSwipeHandle,
       );
     }
   }

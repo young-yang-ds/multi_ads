@@ -100,6 +100,18 @@ class VungleAdsHandler(
         return nativeAdManagers[listenerId]?.nativeAd
     }
 
+    fun getNativeEventSink(): EventChannel.EventSink? {
+        return nativeEventSink
+    }
+
+    fun sendNativeSwipe(listenerId: String, direction: Int) {
+        nativeEventSink?.success(mapOf(
+            "event" to "onAdSwipe",
+            "listenerId" to listenerId,
+            "direction" to direction
+        ))
+    }
+
     private fun updateNativeEventSink(sink: EventChannel.EventSink?) {
         nativeEventSink = sink
         for (manager in nativeAdManagers.values) {

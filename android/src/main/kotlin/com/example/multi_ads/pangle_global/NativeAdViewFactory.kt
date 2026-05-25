@@ -8,6 +8,7 @@ import android.graphics.Outline
 import android.graphics.Typeface
 import android.util.Log
 import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
@@ -20,6 +21,7 @@ import io.flutter.plugin.platform.PlatformViewFactory
 import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeAd
 import com.bytedance.sdk.openadsdk.api.nativeAd.PAGNativeAdInteractionListener
 import java.net.URL
+import kotlin.math.abs
 
 class NativeAdViewFactory(
     private val handler: PangleAdsHandler
@@ -42,8 +44,16 @@ class NativeAdPlatformView(
         const val TAG = "PangleNativeAdView"
     }
 
-    private val container: FrameLayout = FrameLayout(context)
     private val listenerId: String = (creationParams?.get("listenerId") as? String) ?: ""
+    private val container: SwipeFrameLayout = SwipeFrameLayout(context).apply {
+        onVerticalSwipe = { direction ->
+            this@NativeAdPlatformView.handler.getNativeEventSink()?.success(mapOf(
+                "listenerId" to listenerId,
+                "event" to "onAdSwipe",
+                "direction" to direction
+            ))
+        }
+    }
 
     init {
         @Suppress("UNCHECKED_CAST")
@@ -536,5 +546,38 @@ class NativeAdPlatformView(
 
     override fun dispose() {
         container.removeAllViews()
+    }
+}
+
+private class SwipeFrameLayout(context: Context) : FrameLayout(context) {
+    var onVerticalSwipe: ((Int) -> Unit)? = null
+
+    private val threshold = 24f * context.resources.displayMetrics.density
+    private var startX = 0f
+    private var startY = 0f
+    private var fired = false
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                startX = event.rawX
+                startY = event.rawY
+                fired = false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (!fired) {
+                    val dx = event.rawX - startX
+                    val dy = event.rawY - startY
+                    if (abs(dy) >= threshold && abs(dy) > abs(dx) * 1.1f) {
+                        fired = true
+                        onVerticalSwipe?.invoke(if (dy < 0) 1 else -1)
+                    }
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                fired = false
+            }
+        }
+        return super.dispatchTouchEvent(event)
     }
 }

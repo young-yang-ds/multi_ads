@@ -20,20 +20,27 @@ class VungleNativeAdViewFactory: NSObject, FlutterPlatformViewFactory {
     }
 }
 
-class VungleNativeAdPlatformView: NSObject, FlutterPlatformView {
+class VungleNativeAdPlatformView: NSObject, FlutterPlatformView, UIGestureRecognizerDelegate {
     private var containerView: UIView
+    private weak var handler: VungleAdsHandler?
+    private let listenerId: String
+    private var swipeFired = false
+    private let swipeThreshold: CGFloat = 24
     
     init(frame: CGRect, viewId: Int64, args: Any?, handler: VungleAdsHandler?) {
         containerView = UIView(frame: frame)
         containerView.backgroundColor = .clear
+        self.handler = handler
+        let params = args as? [String: Any]
+        listenerId = params?["listenerId"] as? String ?? ""
         super.init()
         
-        if let args = args as? [String: Any],
-           let listenerId = args["listenerId"] as? String,
+        if let args = params,
            let style = args["style"] as? [String: Any],
            let nativeAd = handler?.getNativeAd(listenerId: listenerId) {
             print("[VungleNativeAd] Building native ad view for listener: \(listenerId)")
             buildNativeAdView(nativeAd: nativeAd, style: style)
+            installSwipeBridge(on: containerView)
         } else {
             print("[VungleNativeAd] Failed to build view - ad not loaded or invalid args")
         }
@@ -41,6 +48,40 @@ class VungleNativeAdPlatformView: NSObject, FlutterPlatformView {
     
     func view() -> UIView {
         return containerView
+    }
+
+    private func installSwipeBridge(on view: UIView) {
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleSwipePan(_:)))
+        pan.cancelsTouchesInView = false
+        pan.delegate = self
+        view.addGestureRecognizer(pan)
+    }
+
+    @objc private func handleSwipePan(_ recognizer: UIPanGestureRecognizer) {
+        switch recognizer.state {
+        case .began:
+            swipeFired = false
+        case .changed:
+            if swipeFired { return }
+            let translation = recognizer.translation(in: recognizer.view)
+            let dx = abs(translation.x)
+            let dy = abs(translation.y)
+            guard dy >= swipeThreshold, dy > dx * 1.1 else { return }
+            swipeFired = true
+            let direction = translation.y < 0 ? 1 : -1
+            handler?.sendNativeSwipe(listenerId: listenerId, direction: direction)
+        case .ended, .cancelled, .failed:
+            swipeFired = false
+        default:
+            break
+        }
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        return true
     }
     
     private func buildNativeAdView(nativeAd: VungleNative, style: [String: Any]) {

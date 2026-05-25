@@ -27,7 +27,6 @@ import com.google.android.gms.ads.nativead.NativeAdView
 /// }
 /// ```
 class NativeAdViewBuilder(private val context: Context) {
-
     fun build(nativeAd: NativeAd, customOptions: MutableMap<String, Any>?): NativeAdView {
         val density = context.resources.displayMetrics.density
         val options = customOptions ?: mutableMapOf()
