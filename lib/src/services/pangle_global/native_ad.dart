@@ -191,6 +191,8 @@ class PangleNativeAd {
         layoutDirection: TextDirection.ltr,
         creationParams: creationParams,
         creationParamsCodec: const StandardMessageCodec(),
+        gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+        hitTestBehavior: PlatformViewHitTestBehavior.translucent,
       );
     } else {
       return const SizedBox.shrink();
