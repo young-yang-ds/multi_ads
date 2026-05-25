@@ -166,7 +166,7 @@ class VungleNativeAd {
           return AndroidViewSurface(
             controller: controller as AndroidViewController,
             gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
-            hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+            hitTestBehavior: PlatformViewHitTestBehavior.translucent,
           );
         },
         onCreatePlatformView: (params) {
