@@ -8,6 +8,11 @@ import 'package:multi_ads/src/utils/log_utils.dart';
 import 'models/ad_error.dart';
 import 'pangle_method_channel.dart';
 
+final Set<Factory<OneSequenceGestureRecognizer>> _tapGestureRecognizers =
+    <Factory<OneSequenceGestureRecognizer>>{
+      Factory<OneSequenceGestureRecognizer>(() => TapGestureRecognizer()),
+    };
+
 /// Pangle Global Native Ad
 ///
 /// Supports multiple simultaneous instances. Each instance has its own
@@ -187,7 +192,7 @@ class PangleNativeAd {
         surfaceFactory: (context, controller) {
           return AndroidViewSurface(
             controller: controller as AndroidViewController,
-            gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+            gestureRecognizers: _tapGestureRecognizers,
             hitTestBehavior: PlatformViewHitTestBehavior.translucent,
           );
         },
@@ -212,7 +217,7 @@ class PangleNativeAd {
         layoutDirection: TextDirection.ltr,
         creationParams: creationParams,
         creationParamsCodec: const StandardMessageCodec(),
-        gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+        gestureRecognizers: _tapGestureRecognizers,
         hitTestBehavior: PlatformViewHitTestBehavior.translucent,
       );
     } else {

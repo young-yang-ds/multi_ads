@@ -1,8 +1,19 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' hide AdError;
+import 'package:google_mobile_ads/src/ad_instance_manager.dart'
+    as google_mobile_ads;
 
 import '../../multi_ads.dart';
 import '../utils/log_utils.dart';
+
+final Set<Factory<OneSequenceGestureRecognizer>> _tapGestureRecognizers =
+    <Factory<OneSequenceGestureRecognizer>>{
+      Factory<OneSequenceGestureRecognizer>(() => TapGestureRecognizer()),
+    };
 
 /// A widget that displays native ads. Supports multiple simultaneous instances
 /// for all platforms (Google, Pangle, Vungle). Each widget instance manages
@@ -208,7 +219,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
       return widget.placeholder ?? const SizedBox.shrink();
     }
 
-    final adWidget = AdWidget(
+    final adWidget = _GestureAwareGoogleAdWidget(
       key: ObjectKey(_googleNativeAd!),
       ad: _googleNativeAd!,
     );
@@ -392,5 +403,106 @@ class _NativeAdWidgetState extends State<NativeAdWidget>
     }
 
     return widget.placeholder ?? const SizedBox.shrink();
+  }
+}
+
+class _GestureAwareGoogleAdWidget extends StatefulWidget {
+  final AdWithView ad;
+
+  const _GestureAwareGoogleAdWidget({super.key, required this.ad});
+
+  @override
+  State<_GestureAwareGoogleAdWidget> createState() =>
+      _GestureAwareGoogleAdWidgetState();
+}
+
+class _GestureAwareGoogleAdWidgetState
+    extends State<_GestureAwareGoogleAdWidget> {
+  bool _adIdAlreadyMounted = false;
+  bool _adLoadNotCalled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final adId = google_mobile_ads.instanceManager.adIdFor(widget.ad);
+    if (adId != null) {
+      if (google_mobile_ads.instanceManager.isWidgetAdIdMounted(adId)) {
+        _adIdAlreadyMounted = true;
+      }
+      google_mobile_ads.instanceManager.mountWidgetAdId(adId);
+    } else {
+      _adLoadNotCalled = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    final adId = google_mobile_ads.instanceManager.adIdFor(widget.ad);
+    if (adId != null) {
+      google_mobile_ads.instanceManager.unmountWidgetAdId(adId);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_adIdAlreadyMounted) {
+      throw FlutterError.fromParts(<DiagnosticsNode>[
+        ErrorSummary('This AdWidget is already in the Widget tree'),
+        ErrorHint(
+          'If you placed this AdWidget in a list, make sure you create a new '
+          'instance in the builder function with a unique ad object.',
+        ),
+        ErrorHint(
+          'Make sure you are not using the same ad object in more than one AdWidget.',
+        ),
+      ]);
+    }
+    if (_adLoadNotCalled) {
+      throw FlutterError.fromParts(<DiagnosticsNode>[
+        ErrorSummary(
+          'AdWidget requires Ad.load to be called before AdWidget is inserted into the tree',
+        ),
+        ErrorHint(
+          'Parameter ad is not loaded. Call Ad.load before AdWidget is inserted into the tree.',
+        ),
+      ]);
+    }
+
+    final adId = google_mobile_ads.instanceManager.adIdFor(widget.ad);
+    final viewType =
+        '${google_mobile_ads.instanceManager.channel.name}/ad_widget';
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return PlatformViewLink(
+        viewType: viewType,
+        surfaceFactory: (context, controller) {
+          return AndroidViewSurface(
+            controller: controller as AndroidViewController,
+            gestureRecognizers: _tapGestureRecognizers,
+            hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+          );
+        },
+        onCreatePlatformView: (params) {
+          return PlatformViewsService.initSurfaceAndroidView(
+              id: params.id,
+              viewType: viewType,
+              layoutDirection: TextDirection.ltr,
+              creationParams: adId,
+              creationParamsCodec: const StandardMessageCodec(),
+            )
+            ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+            ..create();
+        },
+      );
+    }
+
+    return UiKitView(
+      viewType: viewType,
+      creationParams: adId,
+      creationParamsCodec: const StandardMessageCodec(),
+      gestureRecognizers: _tapGestureRecognizers,
+      hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+    );
   }
 }

@@ -8,6 +8,11 @@ import 'package:multi_ads/src/utils/log_utils.dart';
 import 'models/vungle_ad_error.dart';
 import 'vungle_method_channel.dart';
 
+final Set<Factory<OneSequenceGestureRecognizer>> _tapGestureRecognizers =
+    <Factory<OneSequenceGestureRecognizer>>{
+      Factory<OneSequenceGestureRecognizer>(() => TapGestureRecognizer()),
+    };
+
 /// Vungle Native Ad - multi-instance supported.
 ///
 /// Each call to [VungleNativeAd.create] produces a new instance with its own
@@ -181,7 +186,7 @@ class VungleNativeAd {
         surfaceFactory: (context, controller) {
           return AndroidViewSurface(
             controller: controller as AndroidViewController,
-            gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+            gestureRecognizers: _tapGestureRecognizers,
             hitTestBehavior: PlatformViewHitTestBehavior.translucent,
           );
         },
@@ -206,7 +211,7 @@ class VungleNativeAd {
         layoutDirection: TextDirection.ltr,
         creationParams: creationParams,
         creationParamsCodec: const StandardMessageCodec(),
-        gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+        gestureRecognizers: _tapGestureRecognizers,
         hitTestBehavior: PlatformViewHitTestBehavior.translucent,
       );
     } else {
