@@ -25,7 +25,7 @@ class VungleNativeAdPlatformView: NSObject, FlutterPlatformView, UIGestureRecogn
     private weak var handler: VungleAdsHandler?
     private let listenerId: String
     private var swipeFired = false
-    private let swipeThreshold: CGFloat = 24
+    private let swipeThreshold: CGFloat = 10
     
     init(frame: CGRect, viewId: Int64, args: Any?, handler: VungleAdsHandler?) {
         containerView = UIView(frame: frame)
@@ -66,7 +66,7 @@ class VungleNativeAdPlatformView: NSObject, FlutterPlatformView, UIGestureRecogn
             let translation = recognizer.translation(in: recognizer.view)
             let dx = abs(translation.x)
             let dy = abs(translation.y)
-            guard dy >= swipeThreshold, dy > dx * 1.1 else { return }
+            guard dy >= swipeThreshold, dy >= dx * 0.75 else { return }
             swipeFired = true
             let direction = translation.y < 0 ? 1 : -1
             handler?.sendNativeSwipe(listenerId: listenerId, direction: direction)

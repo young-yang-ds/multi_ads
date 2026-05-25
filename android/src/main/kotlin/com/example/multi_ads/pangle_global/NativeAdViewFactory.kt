@@ -552,7 +552,7 @@ class NativeAdPlatformView(
 private class SwipeFrameLayout(context: Context) : FrameLayout(context) {
     var onVerticalSwipe: ((Int) -> Unit)? = null
 
-    private val threshold = 24f * context.resources.displayMetrics.density
+    private val threshold = 10f * context.resources.displayMetrics.density
     private var startX = 0f
     private var startY = 0f
     private var fired = false
@@ -568,7 +568,7 @@ private class SwipeFrameLayout(context: Context) : FrameLayout(context) {
                 if (!fired) {
                     val dx = event.rawX - startX
                     val dy = event.rawY - startY
-                    if (abs(dy) >= threshold && abs(dy) > abs(dx) * 1.1f) {
+                    if (abs(dy) >= threshold && abs(dy) >= abs(dx) * 0.75f) {
                         fired = true
                         onVerticalSwipe?.invoke(if (dy < 0) 1 else -1)
                     }
